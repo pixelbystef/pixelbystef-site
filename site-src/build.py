@@ -628,8 +628,7 @@ def build():
         ("We're awkward in front of the camera. Is that a problem?", "Everyone says this. Literally everyone. I'll give you easy, slightly silly prompts that get you laughing, and the awkwardness disappears in about ten minutes. You don't need to know how to pose. That's my job."),
         ("How involved are you before the day?", "As much as you want. Every package starts with a consultation, planning and a moodboard. I'm happy to help with timelines, locations, and when the light's best. Think sounding board, not drill sergeant."),
         ("What are you like on the day?", "Chill. Mostly I blend in and let the day happen. When we need a shot, I jump in, keep it quick, and send you back to your drink."),
-        ("Do you do photo and film?", "Yes, both, and both by me. One person to talk to, a consistent look across photos and film, and one less stranger at your wedding."),
-        ("How much do you charge?", "Weddings: photo £1,400, film £1,600 (full day). Elopements £1,400. Proposals £350. Pre-wedding photo + film £550. Half-day and custom options are available. See each page for what's included."),
+        ("Do you do photo and film?", "Yes, both. For smaller days I can cover photo and film on my own: one person to talk to and one consistent look. For bigger weddings, or if you want both covered all day, I bring a two-person team with one of the photographers and filmmakers I work with regularly, so nothing gets missed and everything still looks like one film."),
         ("Do you travel?", "All the time. I'm based in Edinburgh and London and have filmed as far as Germany. Travel and accommodation are quoted at cost, with no surprises."),
         ("When do we get everything?", "A preview within 24 hours for every package. Full galleries arrive within 1 week (proposals), 2 weeks (pre-wedding) or 4 weeks (weddings and elopements)."),
         ("Can we build a custom package?", "Absolutely. Two days, two countries, a tea ceremony in the morning and a ceilidh at night: tell me the plan and I'll shape the coverage around it."),
@@ -637,7 +636,7 @@ def build():
     body = '<section class="phero" style="padding-bottom:0"><div class="wrap" style="grid-template-columns:1fr"><div><p class="mono">FAQ</p><h1>Good <em>questions.</em></h1><p class="lead">The things couples usually ask before they get in touch. Anything else, just message me.</p></div></div></section>'
     body += '<section class="faq wrap">' + ''.join(f'<details{" open" if i == 0 else ""}><summary>{html.escape(q)}</summary><p>{html.escape(a)}</p></details>' for i, (q, a) in enumerate(faqs)) + '</section>'
     body += cta('Still <em>curious?</em>', "Ask me anything. I'm quick to reply and slow to judge.")
-    page('faq.html', 'FAQ · pixelbystef', 'Pricing, travel, delivery times and what it is like working with pixelbystef.', body, '/faq', 'laugh.jpg')
+    page('faq.html', 'FAQ · pixelbystef', 'Style, photo and film, travel, delivery times and what it is like working with pixelbystef.', body, '/faq', 'laugh.jpg')
 
     # ---------- CONTACT ----------
     body = f'''<section class="contact"><div class="wrap">
