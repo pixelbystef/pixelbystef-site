@@ -238,7 +238,7 @@ york-icecream.jpg | Woman offering an ice cream cone with a grin | Jae & Niki
 # ---------------- ABOUT ----------------
 
 [about.photos]
-stefan-camera-2.jpg | Stefan holding his camera over his shoulder, hand on hip | -
+stefan-camera.jpg | Stefan laughing, holding a camera | -
 stefan-stool.jpg | Stefan laughing, sitting on a tall stool | -
 
 [about.gallery]
