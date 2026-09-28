@@ -162,15 +162,16 @@ scott-mon.jpg | Couple on the steps of the Scott Monument | Byram & Alyssa
 # ---------------- PROPOSALS ----------------
 
 [proposals.hero]
-brandon-chloe-6131.jpg | Man on one knee under a glowing tree at Kew | -
+hero-cliff.jpg | A tiny couple proposing on the edge of the white Seven Sisters cliffs | -
 
 [proposals.gallery]
 liz-quin-1344.jpg | Woman laughing as she hugs her new fiancé
-hero-cliff.jpg | A tiny couple on the edge of the white Seven Sisters cliffs | Zavier & Shawna
+brandon-chloe-6131.jpg | Man on one knee under a glowing tree at Kew
 brandon-chloe-6112.jpg | Couple embracing in front of the glowing Kew glasshouse
 joao-8991.jpg | Man proposing by an ivy wall as she covers her face | Joao
 weisheng-2799.jpg | Man proposing on one knee in a ruined church garden | Weisheng
 kenny-3748.jpg | Couple laughing with a bouquet near Big Ben | Kenny
+kenny-3863.jpg | Couple laughing on Westminster Bridge | Kenny
 hugo-jessica-3.jpg
 hadar-samiya-2.jpg
 ryan-eleni-6862.jpg | Couple kissing as she shows off her ring
@@ -191,7 +192,7 @@ prop-kiss.jpg | Couple kissing, laughing, by the sea | Zavier & Shawna
 # ---------------- PRE-WEDDING & COUPLES ----------------
 
 [couples.hero]
-tube-train.jpg | Couple on a Tube platform as a train rushes past | -
+lizz-jack-074.jpg | Couple hugging by a wooden fence on a misty Cotswolds hillside | -
 
 [couples.gallery]
 # short on purpose (3 rows): portrait = 1, landscape = 2, keep the total at 9.
