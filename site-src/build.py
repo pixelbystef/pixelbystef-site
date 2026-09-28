@@ -12,6 +12,7 @@ def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
 # ---------------------------------------------------------------- CSS
 EXTRA_CSS = r"""
+.hero-film.bare{padding-block:0;background:#0d0b0a}.hero-film.bare video{display:block}.hero-film.bare .sub{bottom:clamp(12px,2.4vw,30px)}
 /* films: thumbnail cards that turn into the player on click */
 .reels{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(22px,3vw,44px) clamp(18px,3vw,40px)}
 .reel{margin:0}
@@ -435,11 +436,9 @@ def build():
     film_items = ''.join(f'      <li><a href="https://www.youtube.com/watch?v={vid}" target="_blank" rel="noopener"><span class="t">{html.escape(names)}</span><span class="go mono">Watch &#8599;</span></a></li>\n' for vid, names, line in films())
     day_html = ''.join(f'<figure>{img(fn, alt)}<figcaption><span class="mono">Sc. {i}</span><b>{cp}</b></figcaption></figure>' for i, (fn, alt, cp) in enumerate(P('home.day'), 1))
     q = P1('home.quote'); cl = P1('home.closing')
-    m = f"""<section class="hero-film" aria-label="Showreel">
-    <div class="slate t mono"><span>Reel 2026</span><span>2.39 : 1</span></div>
+    m = f"""<section class="hero-film bare" aria-label="Showreel">
     <video src="/assets/reel.mp4" poster="/assets/reel-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Showreel of couples laughing, confetti, first kisses and golden-hour portraits"></video>
     <div class="sub"><span>[laughing] okay wait, is it already rolling?</span></div>
-    <div class="slate b mono"><span>Edinburgh · London · Europe</span><span>00:00:18:00</span></div>
   </section>
   <section class="hero-copy wrap">
     <p class="mono">Cinematic wedding &amp; couples photographer</p>
