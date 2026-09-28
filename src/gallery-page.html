@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>{{title_text}} · pixelbystef</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Brand tokens from pixelbystef.com base.css. Light only, like the site. */
+:root{
+  color-scheme: light;
+  --paper:#fbf9f6; --paper-2:#f1ece6; --ink:#1d1a19; --muted:#6f6863;
+  --line:rgba(29,26,25,.12); --rose:#8c5a63; --rose-soft:#e9dcdc;
+  --serif:"Instrument Serif","Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --sans:"Hanken Grotesk","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --gutter:clamp(16px,4vw,56px); --max:1320px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--paper)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img,video{max-width:100%;display:block;height:auto}
+a{color:inherit}
+button{font:inherit;color:inherit}
+.wrap{max-width:var(--max);margin-inline:auto;padding-inline:var(--gutter)}
+.mono{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase}
+h1,h2,h3{font-family:var(--serif);font-weight:400;text-wrap:balance;margin:0;line-height:1.02;letter-spacing:-.01em}
+h1 em,h2 em,h3 em{font-style:italic;color:var(--rose)}
+:focus-visible{outline:2px solid var(--rose);outline-offset:3px}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;border:0;cursor:pointer;background:var(--ink);color:var(--paper);font-weight:500;text-decoration:none;font-size:15px;transition:background .2s ease,transform .2s ease}
+.btn:hover{background:var(--rose);transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.btn.ghost:hover{background:var(--ink);color:var(--paper)}
+.btn.light{background:var(--paper);color:var(--ink)}
+.btn.light:hover{background:var(--rose-soft)}
+.btn.onphoto{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 1px var(--paper)}
+.btn.onphoto:hover{background:var(--paper);color:var(--ink)}
+.btn svg{width:16px;height:16px}
+
+header.top{border-bottom:1px solid var(--line);background:var(--paper);padding-top:env(safe-area-inset-top,0px)}
+header.top .wrap{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding-block:16px}
+.logo{font-family:var(--serif);font-size:30px;text-decoration:none;letter-spacing:-.01em;line-height:1;grid-column:2}
+.logo em{color:var(--rose)}
+header.top .side{display:flex;gap:20px;font-size:15px;justify-content:flex-end;align-items:center}
+header.top .side a{text-decoration:none}
+header.top .side a:hover{color:var(--rose)}
+header.top .for{color:var(--muted)}
+@media (max-width:640px){header.top .wrap{grid-template-columns:1fr auto}.logo{grid-column:1}header.top .for{display:none}}
+
+.cover{position:relative;height:min(78vh,760px);min-height:440px;overflow:hidden;background:var(--paper-2)}
+.cover img{width:100%;height:100%;object-fit:cover;object-position:{{cover_pos}}}
+.cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(29,26,25,0) 40%,rgba(29,26,25,.45) 100%)}
+.cover .copy{position:absolute;left:0;right:0;bottom:0;z-index:1;color:var(--paper);padding-bottom:clamp(28px,5vw,56px)}
+.cover .copy .wrap{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+.cover h1{font-size:clamp(56px,10vw,150px);color:var(--paper)}
+.cover h1 em{color:var(--paper)}
+.cover .mono{opacity:.9;margin:0 0 10px}
+.cover .actions{display:flex;gap:10px;flex-wrap:wrap}
+
+.note{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(24px,5vw,80px);padding-block:clamp(44px,6vw,80px) clamp(28px,4vw,48px);align-items:end}
+.note h2{font-size:clamp(34px,4.4vw,58px)}
+.note .eyebrow{color:var(--rose);margin:0 0 12px}
+.note p{margin:0;color:var(--muted);max-width:52ch}
+.note p + p{margin-top:12px}
+.facts{display:flex;gap:28px;flex-wrap:wrap;margin-top:22px}
+.facts div{display:grid;gap:2px}
+.facts b{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.facts span{color:var(--muted)}
+@media (max-width:820px){.note{grid-template-columns:1fr}}
+
+.films{padding-block:0 clamp(28px,4vw,48px);display:grid;gap:clamp(28px,4vw,48px)}
+.film header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:12px;flex-wrap:wrap}
+.film h3{font-size:clamp(28px,3vw,40px)}
+.film video{width:100%;background:#000;aspect-ratio:16/9}
+
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(251,249,246,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-block:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:16px;padding-block:10px}
+.sets{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.sets::-webkit-scrollbar{display:none}
+.sets button{background:none;border:0;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;font-size:15px;color:var(--muted)}
+.sets button:hover{color:var(--ink)}
+.sets button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.sets button .n{font-family:var(--mono);font-size:11px;margin-left:6px;opacity:.7}
+.bar .tools{display:flex;gap:8px;flex-shrink:0}
+.bar .btn{padding:9px 16px;font-size:14px}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 14px;border-radius:999px;border:0;background:transparent;box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;font-size:14px}
+.iconbtn:hover{box-shadow:inset 0 0 0 1px var(--ink)}
+.iconbtn svg{width:16px;height:16px}
+.iconbtn[aria-pressed="true"]{background:var(--rose-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--rose)}
+@media (max-width:640px){.bar .btn .lbl{display:none}.bar .btn{padding:9px 12px}}
+
+main{padding-block:clamp(20px,3vw,36px) 80px}
+.set{margin-top:clamp(36px,5vw,64px)}
+.set:first-child{margin-top:0}
+.set header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.set h3{font-size:clamp(28px,3vw,40px)}
+.set header .mono{color:var(--muted)}
+.grid{columns:3 280px;column-gap:12px}
+.tile{position:relative;break-inside:avoid;margin:0 0 12px;background:var(--paper-2);cursor:zoom-in;overflow:hidden}
+.tile img{width:100%;transition:transform .5s ease}
+.tile:hover img{transform:scale(1.02)}
+.tile .ov{position:absolute;inset:auto 0 0 0;display:flex;justify-content:space-between;align-items:center;padding:10px;background:linear-gradient(0deg,rgba(29,26,25,.5),rgba(29,26,25,0));opacity:0;transition:opacity .2s ease}
+.tile:hover .ov,.tile:focus-within .ov,.tile.fav .ov{opacity:1}
+.tile .ov .name{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--paper)}
+.tile .ov .acts{display:flex;gap:6px}
+.round{width:36px;height:36px;border-radius:50%;border:0;display:inline-flex;align-items:center;justify-content:center;background:rgba(251,249,246,.92);color:var(--ink);cursor:pointer;transition:transform .15s ease}
+.round:hover{transform:scale(1.08)}
+.round svg{width:17px;height:17px}
+.fav .heart,.lb .heart[aria-pressed="true"]{color:var(--rose)}
+.fav .heart svg path,.lb .heart[aria-pressed="true"] svg path{fill:currentColor}
+.empty{padding:60px 0;text-align:center;color:var(--muted)}
+.empty h3{font-size:34px;color:var(--ink);margin-bottom:8px}
+@media (hover:none){.tile .ov{opacity:1;background:none;justify-content:flex-end}.tile .ov .name{display:none}}
+
+.lb{position:fixed;inset:0;z-index:50;background:var(--paper);display:grid;grid-template-rows:auto 1fr;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.lb .lbtop{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px var(--gutter)}
+.lb .lbtop .mono{color:var(--muted);font-variant-numeric:tabular-nums}
+.lb .lbacts{display:flex;gap:8px;align-items:center}
+.lb .stage{position:relative;display:flex;align-items:center;justify-content:center;padding:0 clamp(16px,6vw,90px) clamp(16px,3vw,32px);min-height:0}
+.lb .stage img{max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain}
+.lb .nav{position:absolute;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;padding:16px;color:var(--ink)}
+.lb .nav:hover{color:var(--rose)}
+.lb .nav svg{width:28px;height:28px}
+.lb .prev{left:clamp(0px,1vw,16px)} .lb .next{right:clamp(0px,1vw,16px)}
+.lb .round{box-shadow:inset 0 0 0 1px var(--line)}
+
+.scrim{position:fixed;inset:0;z-index:60;background:rgba(29,26,25,.4);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet{background:var(--paper);width:min(520px,100%);padding:clamp(22px,4vw,34px);box-shadow:0 30px 80px rgba(29,26,25,.25);max-height:calc(100% - 32px);overflow:auto}
+.sheet h2{font-size:clamp(30px,4vw,40px);margin-bottom:6px}
+.sheet .sub{color:var(--muted);margin:0 0 20px;font-size:15px}
+.opts{display:grid;gap:10px;margin-bottom:22px}
+.opt{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);cursor:pointer;background:var(--paper)}
+.opt:hover{border-color:var(--ink)}
+.opt input{accent-color:var(--rose);width:18px;height:18px;margin:0}
+.opt:has(input:checked){border-color:var(--rose);background:#f7f0ef}
+.opt b{display:block;font-weight:600;font-size:16px}
+.opt small{display:block;color:var(--muted);font-size:13.5px;line-height:1.4}
+.opt .size{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.opt.off{opacity:.5;cursor:not-allowed}
+.sheet .row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.sheet .hint{color:var(--muted);font-size:13.5px;margin:-8px 0 18px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--paper);padding:12px 20px;border-radius:999px;font-size:14.5px;max-width:calc(100% - 32px);text-align:center}
+
+footer{padding-block:36px calc(36px + env(safe-area-inset-bottom,0px));color:var(--muted);border-top:1px solid var(--line)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;font-size:15px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/">pixelby<em>stef</em></a>
+    <div class="side"><span class="for mono">Private gallery</span><a href="#help">Help</a></div>
+  </div>
+</header>
+
+<section class="cover" aria-label="Cover">
+  <img src="{{cover}}" alt="">
+  <div class="copy">
+    <div class="wrap">
+      <div>
+        <p class="mono">{{eyebrow}}</p>
+        <h1>{{title}}</h1>
+      </div>
+      <div class="actions">
+        <a class="btn light" href="#photos">View photos</a>
+        <button class="btn onphoto" type="button" data-dl="all">Download all</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap note">
+  <div>
+    <p class="mono eyebrow">{{note_eyebrow}}</p>
+    <h2>{{heading}}</h2>
+  </div>
+  <div>
+    {{intro}}
+    <p>Tap the heart on any photo to add it to your favourites. I can see your favourites too, which helps if you're ordering an album.</p>
+    <div class="facts">
+      <div><b>{{count}}</b><span class="mono">Photos</span></div>
+      <div><b>{{chapter_count}}</b><span class="mono">Chapters</span></div>
+      <div><b id="fFav">0</b><span class="mono">Favourites</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap films" id="films" hidden></section>
+
+<div class="bar" id="photos">
+  <div class="wrap">
+    <nav class="sets" id="sets" aria-label="Chapters"></nav>
+    <div class="tools">
+      <button class="iconbtn" id="favFilter" type="button" aria-pressed="false" title="Show favourites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.4-9.3-9A5.2 5.2 0 0 1 12 5.8 5.2 5.2 0 0 1 21.3 11C19 15.6 12 20 12 20z"/></svg>
+        <span id="favN">0</span>
+      </button>
+      <button class="btn" type="button" data-dl="view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M4 19h16"/></svg><span class="lbl" id="dlLbl">Download all</span></button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap" id="gallery"></main>
+
+<footer id="help">
+  <div class="wrap">
+    <span>Questions, or something not working? Email <span style="color:var(--ink)">pixelbystef@gmail.com</span></span>
+    <span class="mono">© pixelbystef · Stefan Wijaya</span>
+  </div>
+</footer>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Photo viewer">
+  <div class="lbtop">
+    <span class="mono" id="lbPos"></span>
+    <div class="lbacts">
+      <button class="round heart" id="lbHeart" type="button" aria-pressed="false" aria-label="Add to favourites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.4-9.3-9A5.2 5.2 0 0 1 12 5.8 5.2 5.2 0 0 1 21.3 11C19 15.6 12 20 12 20z"/></svg></button>
+      <button class="round" id="lbDl" type="button" aria-label="Download this photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M4 19h16"/></svg></button>
+      <button class="round" id="lbClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </div>
+  <div class="stage">
+    <button class="nav prev" id="lbPrev" type="button" aria-label="Previous photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <img id="lbImg" alt="">
+    <button class="nav next" id="lbNext" type="button" aria-label="Next photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="dlTitle">
+    <h2 id="dlTitle">Download</h2>
+    <p class="sub" id="dlSub"></p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="size" value="high" id="sizeHigh" checked><span><b>High-res</b><small>Full quality, for prints and albums</small></span><span class="size" id="szHigh"></span></label>
+      <label class="opt" id="optWeb"><input type="radio" name="size" value="web" id="sizeWeb"><span><b>Web &amp; social</b><small>Smaller files for Instagram, WhatsApp and sharing</small></span><span class="size" id="szWeb"></span></label>
+      <label class="opt" id="optRaw"><input type="radio" name="size" value="raw" id="sizeRaw"><span><b>RAW files</b><small id="rawNote"></small></span><span class="size" id="szRaw"></span></label>
+    </div>
+    <p class="hint" id="dlHint" hidden>Big downloads come as one zip file. Wi-Fi recommended. On iPhone, the file lands in the Files app under Downloads.</p>
+    <div class="row">
+      <button class="btn ghost" type="button" id="dlCancel">Cancel</button>
+      <button class="btn" type="submit" id="dlGo">Download</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+var G = {{data}};
+var P = G.photos, SETS = G.chapters, BASE = '/g/' + G.slug;
+var HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.4-9.3-9A5.2 5.2 0 0 1 12 5.8 5.2 5.2 0 0 1 21.3 11C19 15.6 12 20 12 20z"/></svg>';
+var DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M4 19h16"/></svg>';
+var favs = {}; G.favs.forEach(function(id){ favs[id] = 1; });
+var state = {set:'all', favOnly:false, view:[], idx:0, dl:null};
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var rich = function(s){ return esc(s).replace(/\*([^*]+)\*/g, '<em>$1</em>'); };
+function mb(b){ return b >= 1e9 ? (b/1e9).toFixed(2) + ' GB' : b >= 1e6 ? Math.round(b/1e6) + ' MB' : Math.round(b/1e3) + ' KB'; }
+function url(p){ return p.split('/').map(encodeURIComponent).join('/'); }
+
+// films
+if (G.films.length) {
+  $('films').hidden = false;
+  $('films').innerHTML = G.films.map(function(f, i){
+    return '<article class="film"><header><h3>' + rich(f.title) + '</h3>' +
+      '<a class="btn ghost" href="' + BASE + '/fd/' + url(f.file) + '">' + DL + 'Download film · ' + mb(f.size) + '</a></header>' +
+      '<video controls playsinline preload="metadata"' + (f.poster ? ' poster="' + f.poster + '"' : '') + ' src="' + BASE + '/v/' + url(f.watch) + '"></video></article>';
+  }).join('');
+}
+
+// chapter tabs
+var setsEl = $('sets');
+var tabs = [{id:'all', title:'All', n:P.length}];
+if (SETS.length > 1) SETS.forEach(function(s, i){ tabs.push({id:String(i), title:s.title.replace(/\*/g, ''), n:s.to - s.from + 1}); });
+setsEl.innerHTML = tabs.map(function(t){ return '<button type="button" data-set="' + t.id + '" aria-pressed="' + (t.id === 'all') + '">' + esc(t.title) + '<span class="n">' + t.n + '</span></button>'; }).join('');
+setsEl.addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  state.set = b.dataset.set; render();
+  $('photos').scrollIntoView({behavior:'smooth'});
+});
+
+function tile(i){
+  var p = P[i], f = favs[p.id];
+  return '<figure class="tile' + (f ? ' fav' : '') + '" data-i="' + i + '">' +
+    '<img src="' + BASE + '/t/' + encodeURIComponent(p.id) + '.jpg" width="' + p.w + '" height="' + p.h + '" loading="lazy" alt="Photo ' + (i+1) + '">' +
+    '<figcaption class="ov"><span class="name">' + esc(p.id) + '</span><span class="acts">' +
+    '<button class="round heart" type="button" data-act="fav" aria-pressed="' + !!f + '" aria-label="Favourite">' + HEART + '</button>' +
+    '<button class="round" type="button" data-act="dl" aria-label="Download">' + DL + '</button></span></figcaption></figure>';
+}
+function render(){
+  [].forEach.call(setsEl.children, function(b){ b.setAttribute('aria-pressed', b.dataset.set === state.set); });
+  var out = '', view = [];
+  SETS.forEach(function(s, si){
+    if (state.set !== 'all' && state.set !== String(si)) return;
+    var ids = [];
+    for (var i = s.from; i <= s.to; i++) if (!state.favOnly || favs[P[i].id]) ids.push(i);
+    if (!ids.length) return;
+    view = view.concat(ids);
+    out += '<section class="set">' + (SETS.length > 1 ? '<header><h3>' + rich(s.title) + '</h3><span class="mono">' + ids.length + ' photos</span></header>' : '') +
+      '<div class="grid">' + ids.map(tile).join('') + '</div></section>';
+  });
+  if (!view.length) out = '<div class="empty"><h3>No favourites yet</h3><p>Tap the heart on any photo and it will show up here.</p></div>';
+  $('gallery').innerHTML = out; state.view = view;
+  $('dlLbl').textContent = state.favOnly ? 'Download favourites' : state.set === 'all' ? 'Download all' : 'Download chapter';
+  counts();
+}
+function counts(){ var n = Object.keys(favs).length; $('favN').textContent = n; $('fFav').textContent = n; }
+$('favFilter').addEventListener('click', function(){ state.favOnly = !state.favOnly; this.setAttribute('aria-pressed', state.favOnly); render(); });
+
+function paintFav(i){
+  var id = P[i].id, on = !!favs[id];
+  var t = document.querySelector('.tile[data-i="' + i + '"]');
+  if (t){ t.classList.toggle('fav', on); t.querySelector('.heart').setAttribute('aria-pressed', on); }
+  if (!$('lb').hidden && state.view[state.idx] === i) $('lbHeart').setAttribute('aria-pressed', on);
+  counts();
+}
+function toggleFav(i){
+  var id = P[i].id, on = !favs[id];
+  if (on) favs[id] = 1; else delete favs[id];
+  paintFav(i);
+  toast(on ? 'Added to favourites' : 'Removed from favourites');
+  fetch(BASE + '/favs', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id, on:on})})
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(j){ favs = {}; j.ids.forEach(function(x){ favs[x] = 1; }); counts(); })
+    .catch(function(){ if (on) delete favs[id]; else favs[id] = 1; paintFav(i); toast("Couldn't save that. Check your connection and try again."); });
+}
+
+$('gallery').addEventListener('click', function(e){
+  var t = e.target.closest('.tile'); if (!t) return;
+  var i = +t.dataset.i, a = e.target.closest('[data-act]');
+  if (a){ e.stopPropagation(); if (a.dataset.act === 'fav') toggleFav(i); else openDl({one:i}); return; }
+  openLb(state.view.indexOf(i));
+});
+
+// viewer
+function showLb(){
+  var i = state.view[state.idx], p = P[i];
+  $('lbImg').src = BASE + '/p/' + encodeURIComponent(p.id) + '.jpg';
+  $('lbImg').alt = 'Photo ' + (i+1);
+  $('lbPos').textContent = (state.idx+1) + ' / ' + state.view.length + ' · ' + p.id;
+  $('lbHeart').setAttribute('aria-pressed', !!favs[p.id]);
+  [state.idx-1, state.idx+1].forEach(function(k){ if (state.view[k] != null){ var im = new Image(); im.src = BASE + '/p/' + encodeURIComponent(P[state.view[k]].id) + '.jpg'; } });
+}
+function openLb(k){ state.idx = Math.max(0, k); $('lb').hidden = false; document.body.style.overflow = 'hidden'; showLb(); $('lbClose').focus(); }
+function closeLb(){ $('lb').hidden = true; document.body.style.overflow = ''; }
+function step(d){ state.idx = (state.idx + d + state.view.length) % state.view.length; showLb(); }
+$('lbPrev').onclick = function(){ step(-1); }; $('lbNext').onclick = function(){ step(1); };
+$('lbClose').onclick = closeLb;
+$('lbHeart').onclick = function(){ toggleFav(state.view[state.idx]); };
+$('lbDl').onclick = function(){ openDl({one:state.view[state.idx]}); };
+var tx = null;
+$('lb').addEventListener('touchstart', function(e){ tx = e.touches[0].clientX; }, {passive:true});
+$('lb').addEventListener('touchend', function(e){ if (tx == null) return; var dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); tx = null; });
+
+// downloads
+function setOpt(id, on){ var o = $(id); o.classList.toggle('off', !on); o.querySelector('input').disabled = !on; }
+function openDl(opts){
+  var ids, set = 'all', label;
+  if (opts.one != null){ ids = [opts.one]; }
+  else if (opts.scope === 'view' && state.favOnly){ ids = P.map(function(_, i){ return i; }).filter(function(i){ return favs[P[i].id]; }); set = 'favs'; label = 'your favourites'; }
+  else if (opts.scope === 'view' && state.set !== 'all'){ var s = SETS[+state.set]; ids = []; for (var i = s.from; i <= s.to; i++) ids.push(i); set = state.set; label = s.title.replace(/\*/g, ''); }
+  else { ids = P.map(function(_, i){ return i; }); label = 'all photos'; }
+  if (!ids.length){ toast('No favourites yet. Tap a heart first.'); return; }
+  state.dl = {ids:ids, set:set};
+  var hi = 0, web = 0, raw = 0, nWeb = 0, nRaw = 0;
+  ids.forEach(function(i){ var p = P[i]; hi += p.hi[1]; if (p.web){ web += p.web[1]; nWeb++; } if (p.raw && G.rawOpen){ raw += p.raw[1]; nRaw++; } });
+  var hasWeb = nWeb > 0, hasRaw = nRaw > 0;
+  setOpt('optWeb', hasWeb); setOpt('optRaw', hasRaw);
+  $('rawNote').textContent = hasRaw ? 'Unedited camera files, available until ' + G.rawUntil : 'Not included for this gallery';
+  $('sizeHigh').checked = true;
+  if (ids.length === 1){
+    var p = P[ids[0]];
+    $('dlTitle').textContent = 'Download photo';
+    $('dlSub').textContent = p.id;
+    $('szHigh').innerHTML = (p.hi[2] ? p.hi[2] + ' × ' + p.hi[3] + '<br>' : '') + mb(hi);
+    $('szWeb').innerHTML = p.web ? (p.web[2] ? p.web[2] + ' × ' + p.web[3] + '<br>' : '') + mb(web) : '—';
+    $('dlHint').hidden = true;
+  } else {
+    $('dlTitle').textContent = 'Download ' + ids.length + ' photos';
+    $('dlSub').textContent = label.charAt(0).toUpperCase() + label.slice(1) + ', as one zip file.';
+    $('szHigh').textContent = mb(hi);
+    $('szWeb').textContent = hasWeb ? mb(web) : '—';
+    $('dlHint').hidden = false;
+  }
+  $('szRaw').textContent = hasRaw ? (nRaw < ids.length && ids.length > 1 ? nRaw + ' files · ' : '') + mb(raw) : '—';
+  $('scrim').hidden = false; $('dlGo').focus();
+}
+function closeDl(){ $('scrim').hidden = true; }
+$('dlCancel').onclick = closeDl;
+$('scrim').addEventListener('click', function(e){ if (e.target === this) closeDl(); });
+$('sheet').addEventListener('submit', function(e){
+  e.preventDefault();
+  var v = new FormData(this).get('size'), d = state.dl, href;
+  if (d.ids.length === 1){
+    var p = P[d.ids[0]], f = v === 'high' ? p.hi : p[v];
+    href = BASE + '/d/' + v + '/' + url(f[0]);
+  } else {
+    href = BASE + '/zip/' + v + '?set=' + d.set;
+  }
+  closeDl();
+  window.location.href = href;
+  toast(d.ids.length === 1 ? 'Downloading…' : 'Your zip is on its way. Keep this tab open until it finishes.');
+});
+$('photos').querySelector('[data-dl="view"]').onclick = function(){ openDl({scope:'view'}); };
+document.querySelector('[data-dl="all"]').onclick = function(){ openDl({scope:'all'}); };
+
+document.addEventListener('keydown', function(e){
+  if (!$('scrim').hidden){ if (e.key === 'Escape') closeDl(); return; }
+  if ($('lb').hidden) return;
+  if (e.key === 'Escape') closeLb(); else if (e.key === 'ArrowRight') step(1); else if (e.key === 'ArrowLeft') step(-1);
+  else if (e.key === 'f') toggleFav(state.view[state.idx]);
+});
+var tt; function toast(m){ var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(function(){ t.hidden = true; }, 3200); }
+render();
+})();
+</script>
+</body>
+</html>

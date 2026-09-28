@@ -1,5 +1,6 @@
 // pixelbystef.com — static site + enquiry form handler.
 import { EmailMessage } from "cloudflare:email";
+import { handleGallery, handleAdmin } from "./gallery.js";
 // Static files in ./public are served directly by Cloudflare; this Worker only
 // runs for paths that aren't files (e.g. POST /api/enquiry).
 
@@ -151,6 +152,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/enquiry") return handleEnquiry(request, env);
+    if (url.pathname === "/g" || url.pathname.startsWith("/g/")) return handleGallery(request, env);
+    if (url.pathname.startsWith("/g-admin/")) return handleAdmin(request, env);
     return env.ASSETS.fetch(request);
   },
 };

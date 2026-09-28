@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>{{title_text}} · pixelbystef</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{color-scheme:light;--paper:#fbf9f6;--paper-2:#f1ece6;--ink:#1d1a19;--muted:#6f6863;--line:rgba(29,26,25,.12);--rose:#8c5a63;--rose-soft:#e9dcdc;
+--serif:"Instrument Serif","Cormorant Garamond",Georgia,"Times New Roman",serif;--sans:"Hanken Grotesk","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;--gutter:clamp(16px,4vw,56px)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;display:grid;grid-template-rows:auto 1fr auto}
+a{color:inherit}
+.mono{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase}
+header{border-bottom:1px solid var(--line);padding:16px var(--gutter);padding-top:calc(16px + env(safe-area-inset-top,0px));text-align:center}
+.logo{font-family:var(--serif);font-size:30px;text-decoration:none;line-height:1}
+.logo em{color:var(--rose)}
+main{display:grid;place-items:center;padding:48px var(--gutter)}
+.card{width:min(560px,100%);text-align:center}
+.card .mono{color:var(--muted);margin:0 0 14px}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(48px,9vw,96px);line-height:1;margin:0 0 18px;text-wrap:balance;letter-spacing:-.01em}
+h1 em{font-style:italic;color:var(--rose)}
+.lead{color:var(--muted);margin:0 auto 28px;max-width:42ch}
+.lockform{display:grid;gap:8px;text-align:left}
+.lockform label{color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+input{flex:1 1 220px;min-width:0;font:inherit;padding:12px 18px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink)}
+input:focus{outline:2px solid var(--rose);outline-offset:2px;border-color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 24px;border-radius:999px;border:0;cursor:pointer;background:var(--ink);color:var(--paper);font:500 15px var(--sans);transition:background .2s}
+.btn:hover{background:var(--rose)}
+.err{color:var(--rose);margin:6px 0 0;font-size:15px}
+footer{padding:24px var(--gutter);padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));color:var(--muted);text-align:center;font-size:14px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header><a class="logo" href="/">pixelby<em>stef</em></a></header>
+<main>
+  <div class="card">
+    <p class="mono">{{eyebrow}}</p>
+    <h1>{{title}}</h1>
+    <p class="lead">{{lead}}</p>
+    {{form}}
+  </div>
+</main>
+<footer>Questions? Email pixelbystef@gmail.com</footer>
+</body>
+</html>
