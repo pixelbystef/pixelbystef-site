@@ -1,7 +1,15 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pixelbystef-site",
+  "main": "src/index.js",
   "compatibility_date": "2026-09-01",
   "assets": {
-    "directory": "./public"
-  }
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  },
+  "send_email": [
+    { "name": "EMAIL", "destination_address": "pixelbystef@gmail.com" }
+  ],
+  "observability": { "enabled": true }
 }

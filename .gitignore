@@ -1,4 +1,3 @@
 .DS_Store
-.gh-token
-gh-token.txt
 node_modules/
+.wrangler/

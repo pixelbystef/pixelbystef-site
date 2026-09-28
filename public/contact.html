@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Let's chat · pixelbystef</title>
+<meta name="description" content="Enquire about wedding, elopement, proposal and pre-wedding photography and films with pixelbystef.">
+<meta property="og:title" content="Let&#x27;s chat · pixelbystef">
+<meta property="og:description" content="Enquire about wedding, elopement, proposal and pre-wedding photography and films with pixelbystef.">
+<meta property="og:image" content="https://pixelbystef.com/assets/blossom-laugh.jpg">
+<meta property="og:type" content="website">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d1a19'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' dominant-baseline='middle' font-family='Georgia,serif' font-style='italic' font-size='40' fill='%23fbf9f6'%3Es%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <nav class="nav l" aria-label="Services"><a href="/weddings">Weddings</a><a href="/elopements">Elopements</a><a href="/proposals">Proposals</a><a href="/couples">Pre-wedding</a></nav>
+    <a class="logo" href="/">pixelby<em>stef</em></a>
+    <nav class="nav r" aria-label="More"><a href="/films">Films</a><a href="/about">About</a><a href="/faq">FAQ</a><a class="btn" href="/contact">Let's chat</a><button class="menu-btn" type="button" aria-expanded="false" aria-controls="drawer">Menu</button></nav>
+  </div>
+  <div class="drawer" id="drawer"><nav class="wrap" aria-label="Mobile"><a href="/weddings">Weddings</a><a href="/elopements">Elopements</a><a href="/proposals">Proposals</a><a href="/couples">Pre-wedding</a><a href="/films">Films</a><a href="/about">About</a><a href="/faq">FAQ</a><a href="/contact">Let's chat</a></nav></div>
+</header>
+<main id="top">
+<section class="contact"><div class="wrap">
+  <div class="side"><p class="mono" style="color:var(--muted);margin-bottom:16px">Contact</p>
+    <h1>Let's make something <em>good.</em></h1>
+    <p>Tell me a bit about you two. I reply within 48 hours, usually with too many exclamation marks.</p>
+    <p>Prefer email? <span class="email">pixelbystef@gmail.com</span></p>
+    <img src="/assets/blossom-laugh.jpg" width="667" height="1000" alt="Couple laughing forehead to forehead under cherry blossom" loading="lazy">
+  </div>
+  <form class="enquiry" action="/api/enquiry" method="post">
+    <label class="full"><span>Your names (both of you!)</span><input id="f-names" name="names" required maxlength="120" autocomplete="name"></label>
+    <label><span>Email</span><input id="f-email" name="email" type="email" required maxlength="160" autocomplete="email"></label>
+    <label><span>Phone (optional)</span><input id="f-phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></label>
+    <label><span>What are we shooting?</span><select id="f-type" name="type" required>
+      <option value="">Choose one</option><option>Wedding</option><option>Elopement</option><option>Proposal</option><option>Pre-wedding / couples</option><option>Something else</option></select></label>
+    <label><span>Photo, film, or both?</span><select id="f-medium" name="medium">
+      <option>Photo</option><option>Film</option><option selected>Both</option><option>Not sure yet</option></select></label>
+    <label><span>Date (rough is fine)</span><input id="f-date" name="date" maxlength="80" placeholder="e.g. June 2027"></label>
+    <label><span>Where?</span><input id="f-place" name="place" maxlength="120" placeholder="Venue, city or 'no idea yet'"></label>
+    <label class="full"><span>Tell me your story. How did you meet, and what's the vibe?</span><textarea id="f-msg" name="message" required maxlength="5000"></textarea></label>
+    <label class="full"><span>How did you find me? (optional)</span><input id="f-src" name="source" maxlength="120"></label>
+    <div class="hp" aria-hidden="true"><label>Company<input id="f-company" name="company" tabindex="-1" autocomplete="off"></label></div>
+    <button class="btn" type="submit">Send it</button>
+    <p class="status" role="status" aria-live="polite"></p>
+  </form>
+</div></section>
+</main>
+<footer>
+  <div class="wrap" style="display:block">
+    <div class="cols4">
+      <div><h4>pixelby<em style="color:var(--rose)">stef</em></h4><p>Cinematic photos and films for couples who'd rather laugh than pose. Edinburgh, London and wherever you are.</p></div>
+      <div><h4>Work</h4><a href="/weddings">Weddings</a><a href="/elopements">Elopements</a><a href="/proposals">Proposals</a><a href="/couples">Pre-wedding &amp; couples</a></div>
+      <div><h4>More</h4><a href="/films">Films</a><a href="/about">About</a><a href="/faq">FAQ</a><a href="/contact">Contact</a></div>
+      <div><h4>Say hi</h4><a href="https://www.instagram.com/pixelbystef/" target="_blank" rel="noopener">Instagram</a><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener">YouTube</a><span class="email">pixelbystef@gmail.com</span></div>
+    </div>
+    <span class="mono">© 2026 pixelbystef · Stefan Wijaya · Edinburgh · London · wherever</span>
+  </div>
+</footer>
+<script>
+(function(){var b=document.querySelector('.menu-btn'),d=document.getElementById('drawer');if(b&&d){b.addEventListener('click',function(){var o=d.classList.toggle('open');b.setAttribute('aria-expanded',o);b.textContent=o?'Close':'Menu';});}
+var f=document.querySelector('form.enquiry');if(!f)return;var s=f.querySelector('.status'),btn=f.querySelector('button');
+f.addEventListener('submit',function(e){e.preventDefault();if(!f.reportValidity())return;btn.disabled=true;btn.textContent='Sending…';s.className='status';s.textContent='';
+fetch(f.action,{method:'POST',body:new FormData(f),headers:{'Accept':'application/json'}}).then(function(r){return r.json().catch(function(){return{ok:false}})}).then(function(j){
+if(j&&j.ok){var w=document.createElement('div');w.className='sent';w.innerHTML='<p class="mono" style="color:var(--rose)">Message sent</p><h2>Got it! I\u2019m already a little <em>excited.</em></h2><p>I\u2019ll reply within 48 hours. In the meantime, have a nosy at the <a href="/films">films</a> or say hi on <a href="https://www.instagram.com/pixelbystef/" target="_blank" rel="noopener">Instagram</a>.</p>';f.replaceWith(w);w.scrollIntoView({behavior:'smooth',block:'center'});}
+else{throw new Error((j&&j.error)||'fail')}}).catch(function(err){btn.disabled=false;btn.textContent='Send it';s.className='status err';s.textContent=(err&&err.message&&err.message!=='fail'&&err.message.length<140?err.message+' ':'')+'Something went wrong on my side. Please email me at pixelbystef@gmail.com and I\u2019ll get back to you.';});});})();
+</script>
+</body>
+</html>
