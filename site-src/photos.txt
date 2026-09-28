@@ -63,8 +63,8 @@ chloe-owen-9.jpg
 
 [home.about]
 # two photos of Stefan next to "Hi, I'm Stefan"
-stefan-heart.jpg | Stefan making a heart shape with his arms and grinning | -
-stefan-camera.jpg | Stefan laughing, holding a camera | -
+stefan-camera-2.jpg | Stefan holding his camera over his shoulder, hand on hip | -
+stefan-stool.jpg | Stefan laughing, sitting on a tall stool | -
 
 [home.day]
 # "A wedding day, in scenes". Here the third part is the scene title.
@@ -82,18 +82,20 @@ neha-raj-17.jpg | Couple silhouetted at sunset | Last light
 # photo next to the testimonial
 field-kiss.jpg | Couple kissing in a green field, showing off an engagement ring
 
-[home.instagram]
-# six small squares in "Say hi on Instagram"
-joshua-meagan-5186.jpg | Couple running down a London street
-nick-melissa-16.jpg | Man lifting his laughing partner by a red bus
-brandon-chloe-6206.jpg | Couple kissing in front of a carousel
-ryan-eleni-6896.jpg | Couple embracing under wisteria
-tube-train.jpg | Couple on a Tube platform as a train rushes past
-blossom-sit.jpg | Couple sitting in grass under cherry blossom
-
 [home.closing]
 # the photo behind "Got a date?"
 york-ruin-c.jpg | Couple walking past a ruined abbey arch in York
+
+
+# ---------------- FILMS ----------------
+
+[films]
+# the film cards on the Films page (and the list on the homepage), in this order.
+# format:  YouTube link | couple names | line shown under the names
+https://www.youtube.com/watch?v=g2T3Gcwa6ak | Jingnan & Nathan | "Holding your hand, growing old with you"
+https://www.youtube.com/watch?v=GizYz3jxsc4 | Lukas & Amanda | "To believe in you, even on the days you don't believe in yourself"
+https://www.youtube.com/watch?v=rEbZ9CxnyVw | Raj & Neha | "The summer wedding you always dreamed of"
+https://www.youtube.com/watch?v=LtGcSnJ2k2s | Isaac & Temcy | "To love and to cherish, till parted by death"
 
 
 # ---------------- WEDDINGS ----------------
@@ -236,8 +238,8 @@ york-icecream.jpg | Woman offering an ice cream cone with a grin | Jae & Niki
 # ---------------- ABOUT ----------------
 
 [about.photos]
-stefan-heart.jpg | Stefan making a heart shape with his arms and grinning | -
-stefan-camera.jpg | Stefan laughing, holding a camera | -
+stefan-camera-2.jpg | Stefan holding his camera over his shoulder, hand on hip | -
+stefan-stool.jpg | Stefan laughing, sitting on a tall stool | -
 
 [about.gallery]
 run-field.jpg | Couple running and laughing across a field | Lizz & Jack

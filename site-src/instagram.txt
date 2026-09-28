@@ -1,0 +1,84 @@
+# ==============================================================
+#  "Lately on Instagram" cards on the homepage
+# ==============================================================
+#  One block per post, starting with [post]. Shown in this order
+#  (best to keep 3 or 6). Comments are copied from the real post;
+#  the first two "comment:" lines are shown.
+#
+#  photo:  a file in the assets folder (usually a photo from the post)
+#  comment:  handle | what they wrote
+#
+#  Ask Claude to "refresh the Instagram cards" to pull newer posts.
+# ==============================================================
+
+[post]
+link: https://www.instagram.com/p/DdyShR1EaYA/
+photo: jojo-peter-9796.jpg
+alt: Couple on white steps in an Edinburgh close
+place: Edinburgh
+date: 27 Sep 2026
+likes: 429
+comment_count: 16
+caption: Imagine planning a proposal for a whole year, flying all your closest friends from the States to Scotland, and then proposing in the Highlands.
+comment: peter_kelley | These turned out so good!! Wedding planning has commenced 🫡
+comment: jojoocheng | Best man planner we know 🤣
+
+[post]
+link: https://www.instagram.com/p/DdBeGfeDTlB/
+photo: claire-lucas-1196.jpg
+alt: Couple walking past the Royal Albert Hall
+place: London
+date: 8 Sep 2026
+likes: 173
+comment_count: 10
+caption: Just a nice, sunny stroll around Hyde Park 🍀 (plus some silly shots 🤪)
+comment: bretandevey | Love these photos 🙌❤️
+comment: bemyhanni | Soo pretty! ❤️
+
+[post]
+link: https://www.instagram.com/p/DcWEZKwjTed/
+photo: brenda-eduard-0882.jpg
+alt: Groom lifting the bride in front of the Natural History Museum
+place: London
+date: 22 Aug 2026
+likes: 239
+comment_count: 7
+caption: A little London wandering during the heatwave wouldn't hurt, right? ☀️
+comment: eduardwikarta | Super lovely!! Thanks for the amazing photos @pixelbystef 🤩🤩
+comment: joshuashing.junle | So sweet!
+
+[post]
+link: https://www.instagram.com/p/DS7mxy5iNYu/
+photo: jimmy-verga-2.jpg
+alt: Couple dancing in silhouette on a cobbled Edinburgh street
+place: Edinburgh
+date: 31 Dec 2025
+likes: 52
+comment_count: 14
+caption: Thank you, 2025 ❤️
+comment: dinaraverga | only @pixelbystef can turn casual moments into magical movie scenes 🥹👏
+comment: alyssa.a87 | @byrammaxwell and I can't wait!!!!! 👰‍♀️🤵‍♂️📸
+
+[post]
+link: https://www.instagram.com/p/DPv1meniAU5/
+photo: nicole-rilan-8.jpg
+alt: Groom dipping the bride for a kiss above Loch Lomond
+place: Loch Lomond
+date: 13 Oct 2025
+likes: 158
+comment_count: 18
+caption: At the top, with the wind brushing past and the view stretching endlessly around us, Nicole and Rilan exchanged their vows.
+comment: n.alimurong | can't express how much we love the photos!
+comment: riyapatel10 | I am in AWE!! You guys are absolutely stunning.. and the backdrop 🔥🔥
+
+[post]
+link: https://www.instagram.com/p/DOIm5Vjjd1Y/
+photo: nicole-rilan-e7065.jpg
+alt: Couple embracing above the Edinburgh skyline at dusk
+place: Edinburgh
+date: 3 Sep 2025
+likes: 152
+comment_count: 18
+caption: I fell in love with this city when I first stepped my foot in. It has a way of making time feel slower, of softening the edges of everyday life.
+comment: broadwaybowcutt | This is so beautiful! Warms my heart.
+comment: lizzyhutchisonphotography | These are so sweet!! 🌅

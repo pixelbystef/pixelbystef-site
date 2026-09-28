@@ -12,6 +12,37 @@ def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
 # ---------------------------------------------------------------- CSS
 EXTRA_CSS = r"""
+/* films: thumbnail cards that turn into the player on click */
+.reels{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(22px,3vw,44px) clamp(18px,3vw,40px)}
+.reel{margin:0}
+.reel .play{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#0d0b0a;border:0;padding:0;cursor:pointer;overflow:hidden;border-radius:2px}
+.reel .play img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease,opacity .3s}
+.reel .play:hover img{transform:scale(1.03);opacity:.85}
+.reel .play .btn-p{position:absolute;left:50%;top:50%;width:68px;height:68px;margin:-34px 0 0 -34px;border-radius:50%;background:rgba(250,248,245,.92);display:grid;place-items:center;transition:transform .3s}
+.reel .play:hover .btn-p{transform:scale(1.08)}
+.reel .play .btn-p:after{content:"";margin-left:5px;border-style:solid;border-width:11px 0 11px 18px;border-color:transparent transparent transparent #1c1917}
+.reel iframe{width:100%;aspect-ratio:16/9;border:0;display:block;border-radius:2px;background:#0d0b0a}
+.reel figcaption{padding-top:14px;margin-top:0;color:var(--ink)}
+.reel figcaption b{display:block;font-family:var(--serif);font-weight:400;font-size:clamp(24px,2.6vw,34px);line-height:1.1}
+.reel figcaption i{display:block;color:var(--muted);margin-top:6px;font-size:15px}
+.reels-more{margin-top:clamp(28px,4vw,48px);text-align:center}
+@media (max-width:760px){.reels{grid-template-columns:1fr}}
+/* instagram: post cards with real comments */
+.igfeed{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,2vw,28px)}
+.igpost{background:var(--paper-2);border-radius:2px;display:flex;flex-direction:column;overflow:hidden}
+.igpost .ph{display:block;aspect-ratio:4/5;overflow:hidden}
+.igpost .ph img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
+.igpost .ph:hover img{transform:scale(1.03)}
+.igpost .body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:10px;flex:1}
+.igpost .meta{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px}
+.igpost .cap{font-size:14px;line-height:1.5;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.igpost .cap b,.igpost .cm b{font-weight:600}
+.igpost ul{list-style:none;margin:0;padding:10px 0 0;border-top:1px solid var(--line);display:grid;gap:7px}
+.igpost .cm{font-size:13px;line-height:1.45}
+.igpost .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:6px;font-size:10px;color:var(--muted)}
+.igpost .foot a{color:var(--rose);text-decoration:none}
+@media (max-width:900px){.igfeed{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px}.igpost{flex:0 0 80%;scroll-snap-align:start}}
+
 /* ---------- shared: nav + mobile menu ---------- */
 .nav a.on{color:var(--rose)}
 .menu-btn{display:none;background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
@@ -207,10 +238,52 @@ def P(section):
             alt = f[1] if len(f) > 1 and f[1] else ALT.get(key, 'Photo by pixelbystef')
             cp = html.escape(f[2]) if len(f) > 2 and f[2] else auto_cap(fn)
             if cp in ('-', '&#x27;-&#x27;'): cp = ''
-            _PH[cur].append((fn, html.escape(alt), cp))
+            _PH[cur].append((fn, alt, cp))
     if section not in _PH: raise SystemExit(f'photos.txt is missing the section [{section}]')
     return _PH[section]
 def P1(section): return P(section)[0]
+
+import re as _re
+def yt_id(url):
+    m = _re.search(r'(?:v=|youtu\.be/|embed/)([\w-]{11})', url)
+    return m.group(1) if m else url.strip()
+
+def films():
+    # [films] in photos.txt:  youtube link | couple names | line under the names
+    return [(yt_id(fn), alt, cp) for fn, alt, cp in P('films')]
+
+IG_FILE = os.path.join(HERE, 'instagram.txt')
+def ig_posts():
+    # instagram.txt: blocks starting with [post], then 'key: value' lines; 'comment: handle | text' can repeat
+    posts, cur = [], None
+    if not os.path.exists(IG_FILE): return posts
+    for raw in open(IG_FILE, encoding='utf-8'):
+        line = raw.strip()
+        if not line or line.startswith('#'): continue
+        if line.lower() == '[post]':
+            cur = {'comments': []}; posts.append(cur); continue
+        if cur is None or ':' not in line: continue
+        k, v = line.split(':', 1); k = k.strip().lower(); v = v.strip()
+        if k == 'comment':
+            h, _, t = v.partition('|'); cur['comments'].append((h.strip().lstrip('@'), t.strip()))
+        else:
+            cur[k] = v
+    return posts
+
+def ig_feed():
+    e = html.escape
+    cards = []
+    for p in ig_posts():
+        cms = ''.join(f'<li class="cm"><b>{e(h)}</b> {e(t)}</li>' for h, t in p['comments'][:2])
+        link = e(p.get('link', 'https://www.instagram.com/pixelbystef/'))
+        cards.append(
+            f'<article class="igpost"><a class="ph" href="{link}" target="_blank" rel="noopener">'
+            f'{img(p["photo"], p.get("alt", "Instagram post by pixelbystef"))}</a><div class="body">'
+            f'<div class="meta mono"><span>{e(p.get("place", ""))}</span><span>{e(p.get("date", ""))}</span></div>'
+            f'<p class="cap"><b>pixelbystef</b> {e(p.get("caption", ""))}</p><ul>{cms}</ul>'
+            f'<div class="foot mono"><span>&#9829; {e(p.get("likes", ""))} &nbsp;&middot;&nbsp; {e(p.get("comment_count", ""))} comments</span>'
+            f'<a href="{link}" target="_blank" rel="noopener">View post &#8599;</a></div></div></article>')
+    return ''.join(cards)
 
 # ---------------------------------------------------------------- helpers
 def img(src, alt, cls='', lazy=True):
@@ -342,6 +415,7 @@ def build():
                  ('/proposals', 'Proposals', 'I hide in the bushes. You get the reaction on camera.'),
                  ('/couples', 'Pre-wedding', 'Dress up, wander somewhere pretty, be a bit ridiculous. Photos and a short film.')]
     tiles_html = ''.join(f'<a class="tile" href="{h}"><div class="img">{img(t[0], t[1])}</div><h3>{n}<span>→</span></h3><p>{d}</p></a>' for (h, n, d), t in zip(tile_meta, tiles))
+    film_items = ''.join(f'      <li><a href="https://www.youtube.com/watch?v={vid}" target="_blank" rel="noopener"><span class="t">{html.escape(names)}</span><span class="go mono">Watch &#8599;</span></a></li>\n' for vid, names, line in films())
     day_html = ''.join(f'<figure>{img(fn, alt)}<figcaption><span class="mono">Sc. {i}</span><b>{cp}</b></figcaption></figure>' for i, (fn, alt, cp) in enumerate(P('home.day'), 1))
     q = P1('home.quote'); cl = P1('home.closing')
     m = f"""<section class="hero-film" aria-label="Showreel">
@@ -390,17 +464,14 @@ def build():
   <section class="films" id="films"><div class="wrap">
     <div class="still"><span class="mono">Now showing</span><img src="/assets/reel-poster.jpg" width="1280" height="536" alt="Still frame from the wedding showreel" loading="lazy"></div>
     <div><h2>Now <em>showing</em></h2><ul class="listing">
-      <li><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Isaac &amp; Temcy <i>Edinburgh</i></span><span class="go mono">Watch ↗</span></a></li>
-      <li><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Lukas &amp; Amanda <i>Rüsselsheim</i></span><span class="go mono">Watch ↗</span></a></li>
-      <li><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Raj &amp; Neha <i>London</i></span><span class="go mono">Watch ↗</span></a></li>
-    </ul></div>
+{film_items}    </ul></div>
   </div></section>
   <section class="quote"><div class="wrap">{img(q[0], q[1])}
     <div><blockquote>“Stefan really has given us the best memories and we are so grateful for him. The most supportive, patient, and lovely <em>photographer.</em>”</blockquote><cite class="mono">Chris &amp; Nia</cite></div>
   </div></section>
   <section class="insta wrap" aria-label="Instagram">
-    <div class="sec-head"><h2>Say hi on <em>Instagram</em></h2><a class="mono" href="https://www.instagram.com/pixelbystef/" target="_blank" rel="noopener">@pixelbystef ↗</a></div>
-    <div class="grid">{''.join(img(fn, alt) for fn, alt, cp in P('home.instagram'))}</div>
+    <div class="sec-head"><h2>Lately on <em>Instagram</em></h2><a class="mono" href="https://www.instagram.com/pixelbystef/" target="_blank" rel="noopener">Follow @pixelbystef &#8599;</a></div>
+    <div class="igfeed">{ig_feed()}</div>
   </section>
   <section class="closing" id="chat">{img(cl[0], cl[1])}
     <div class="over"><h2>Got a date? Let's make it a <em>good one.</em></h2><p>Tell me about you two. Coffee's on me, or a video call if you're far away.</p><a class="btn light" href="/contact">Let's chat</a></div>
@@ -504,12 +575,14 @@ def build():
   <section class="phero" style="padding-bottom:0"><div class="wrap" style="grid-template-columns:1fr">
     <div><p class="mono">Films</p><h1>Now <em>showing</em></h1><p class="lead">Cinema cameras, proper audio and a drone, cut into films you'll actually rewatch. Grab some popcorn.</p></div>
   </div></section>
-  <section class="wrap" style="padding-block:24px clamp(64px,9vw,120px)"><div class="film-list">
-    <a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Isaac &amp; Temcy<i>Edinburgh</i></span><span class="go mono">Watch ↗</span></a>
-    <a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Lukas &amp; Amanda<i>Rüsselsheim</i></span><span class="go mono">Watch ↗</span></a>
-    <a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Raj &amp; Neha<i>London</i></span><span class="go mono">Watch ↗</span></a>
-    <a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">More on YouTube<i>@pixelbystef</i></span><span class="go mono">Channel ↗</span></a>
-  </div></section>'''
+  <section class="wrap" style="padding-block:24px clamp(64px,9vw,120px)"><div class="reels">'''
+    for vid, names, line in films():
+        n = html.escape(names)
+        body += (f'<figure class="reel"><button class="play" type="button" data-yt="{vid}" aria-label="Play the film: {n}">'
+                 f'<img src="https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" onerror="this.onerror=null;this.src=&#39;https://i.ytimg.com/vi/{vid}/hqdefault.jpg&#39;" alt="Still from the wedding film of {n}" loading="lazy" width="1280" height="720">'
+                 f'<span class="btn-p"></span></button><figcaption><b>{n}</b>' + (f'<i>{line}</i>' if line else '') + '</figcaption></figure>')
+    body += '''</div><p class="reels-more"><a class="btn ghost" href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener">More films on YouTube &#8599;</a></p></section>
+<script>document.querySelectorAll('.reel .play').forEach(function(b){b.addEventListener('click',function(){var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.yt+'?autoplay=1&rel=0';f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;b.replaceWith(f);});});</script>'''
     body += cta('Want your own <em>premiere?</em>')
     page('films.html', 'Wedding films · pixelbystef', 'Cinematic wedding films shot on cinema cameras with pro audio and drone, by Stefan of pixelbystef.', body, '/films', 'reel-poster.jpg')
 
@@ -531,7 +604,7 @@ def build():
     body += '</div></section>'
     body += gallery(P('about.gallery'))
     body += cta()
-    page('about.html', 'About Stefan · pixelbystef', 'Stefan Wijaya: physicist by training, cinematic wedding and couples photographer and filmmaker based in Edinburgh and London.', body, '/about', 'stefan-heart.jpg')
+    page('about.html', 'About Stefan · pixelbystef', 'Stefan Wijaya: physicist by training, cinematic wedding and couples photographer and filmmaker based in Edinburgh and London.', body, '/about', P('about.photos')[0][0])
 
     # ---------- FAQ ----------
     faqs = [
