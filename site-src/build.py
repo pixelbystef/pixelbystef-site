@@ -122,6 +122,24 @@ form.enquiry .status.err{color:#a3372c}
 .about-pair{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,20px)}
 .about-pair img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:2px}
 .about-pair img:last-child{margin-top:18%}
+/* ---------- photo grid (no gaps; landscape photos span 2 columns) ---------- */
+.gal{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:clamp(240px,31vw,470px);grid-auto-flow:row dense;gap:clamp(8px,1.2vw,16px)}
+.gal figure{margin:0;position:relative;overflow:hidden;border-radius:2px;background:var(--paper-2)}
+.gal figure.wide{grid-column:span 2}
+.gal img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.gal figure:hover img{transform:scale(1.03)}
+.gal figcaption{position:absolute;left:10px;bottom:10px;margin:0;color:#fff;font-size:10px;opacity:0;transition:opacity .3s;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.gal figure:hover figcaption{opacity:1}
+@media (max-width:700px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:clamp(200px,62vw,340px)}}
+.stories{padding-bottom:0}
+/* ---------- symmetric page hero ---------- */
+.phero .wrap{grid-template-columns:1fr 1fr;align-items:stretch}
+.phero .ptext{display:flex;flex-direction:column;justify-content:center;padding-block:clamp(8px,2vw,24px)}
+.phero figure.pimg{margin:0;min-height:clamp(340px,40vw,600px);position:relative}
+.phero figure.pimg img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;border-radius:2px}
+.phero h1{font-size:clamp(48px,6.4vw,100px)}
+@media (max-width:860px){.phero .wrap{grid-template-columns:1fr}.phero figure.pimg{order:-1;min-height:clamp(260px,70vw,460px)}}
+
 """
 
 
@@ -164,6 +182,35 @@ def cap(k):
     a,b=k.split('-')[:2]; return f'{a.title()} &amp; {b.title()}'
 def g(*keys):
     return [(k+'.jpg', ALT[k], cap(k)) for k in keys]
+
+
+PHOTOS_FILE = os.path.join(HERE, 'photos.txt')
+_PH = None
+def auto_cap(fn):
+    parts = os.path.splitext(fn)[0].split('-')
+    if len(parts) >= 3 and parts[0].isalpha() and parts[1].isalpha():
+        return f'{parts[0].title()} &amp; {parts[1].title()}'
+    return ''
+def P(section):
+    """Photos for a section of photos.txt -> list of (file, alt, caption)."""
+    global _PH
+    if _PH is None:
+        _PH, cur = {}, None
+        for raw in open(PHOTOS_FILE, encoding='utf-8'):
+            line = raw.split('#', 1)[0].strip() if not raw.lstrip().startswith('#') else ''
+            if not line: continue
+            if line.startswith('[') and line.endswith(']'):
+                cur = line[1:-1].strip(); _PH[cur] = []; continue
+            f = [x.strip() for x in line.split('|')]
+            fn = f[0]
+            key = os.path.splitext(fn)[0]
+            alt = f[1] if len(f) > 1 and f[1] else ALT.get(key, 'Photo by pixelbystef')
+            cp = html.escape(f[2]) if len(f) > 2 and f[2] else auto_cap(fn)
+            if cp in ('-', '&#x27;-&#x27;'): cp = ''
+            _PH[cur].append((fn, html.escape(alt), cp))
+    if section not in _PH: raise SystemExit(f'photos.txt is missing the section [{section}]')
+    return _PH[section]
+def P1(section): return P(section)[0]
 
 # ---------------------------------------------------------------- helpers
 def img(src, alt, cls='', lazy=True):
@@ -258,13 +305,20 @@ def cta(h='Got a date? Let\'s make it a <em>good one.</em>', p="Tell me about yo
     return f'<section class="ctaband"><div class="wrap"><h2>{h}</h2><p>{p}</p><a class="btn light" href="/contact">Let\'s chat</a></div></section>'
 
 def gallery(items):
-    return '<section class="pgal wrap"><div class="masonry">' + ''.join(fig(s, a, c) for s, a, c in items) + '</div></section>'
+    out = []
+    for fn, alt, cp in items:
+        w, h = Image.open(os.path.join(ASSETS, fn)).size
+        cls = ' class="wide"' if w > h * 1.15 else ''
+        c = f'<figcaption class="mono">{cp}</figcaption>' if cp else ''
+        out.append(f'<figure{cls}>{img(fn, alt)}{c}</figure>')
+    return '<section class="pgal wrap"><div class="gal">' + ''.join(out) + '</div></section>'
 
-def phero(eyebrow, h1, lead, image, alt, wide=False, cta2=('#packages', 'See packages')):
+def phero(eyebrow, h1, lead, section, cta2=('#packages', 'See packages')):
+    fn, alt, cp = P1(section)
     return f'''<section class="phero"><div class="wrap">
-  <div><p class="mono">{eyebrow}</p><h1>{h1}</h1><p class="lead">{lead}</p>
+  <div class="ptext"><p class="mono">{eyebrow}</p><h1>{h1}</h1><p class="lead">{lead}</p>
   <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="{cta2[0]}">{cta2[1]}</a></div></div>
-  <figure{' class="wide"' if wide else ''}>{img(image, alt, lazy=False)}</figure>
+  <figure class="pimg">{img(fn, alt, lazy=False)}</figure>
 </div></section>'''
 
 def feel(h2, paras):
@@ -280,49 +334,85 @@ def build():
     open(os.path.join(OUT, 'styles.css'), 'w').write(rd('base.css') + EXTRA_CSS)
 
     # ---------- HOME ----------
-    m = rd('home_main.html')
-    m = m.replace('href="#chat"', 'href="/contact"').replace('href="#films"', 'href="/films"')
-    for k in ['weddings', 'elopements', 'proposals']:
-        m = m.replace(f'href="#{k}"', f'href="/{k}"')
-    m = m.replace('href="#couples"', 'href="/couples"')
-    m = m.replace('<h3>Couples<span>→</span></h3>', '<h3>Pre-wedding<span>→</span></h3>')
-    m = m.replace('An excuse to dress up, wander somewhere pretty and be a bit ridiculous.', 'Dress up, wander somewhere pretty, be a bit ridiculous. Photos and a short film.')
-    m = m.replace('src="assets/', 'src="/assets/').replace('poster="assets/', 'poster="/assets/')
-    # about pair -> Stefan
-    m = re.sub(r'<img class="p1"[^>]*>', img('stefan-heart.jpg', 'Stefan making a heart shape with his arms and grinning', 'p1'), m)
-    m = re.sub(r'<img class="p2"[^>]*>', img('stefan-camera.jpg', 'Stefan laughing, holding a camera', 'p2'), m)
-    m = m.replace('<p class="stand mono">Stand-in photos · your portrait goes here</p>', '')
-    m = m.replace('<a class="btn ghost" href="/contact">Get to know me</a>', '<a class="btn ghost" href="/about">Get to know me</a>')
-    m = m.replace('id="faq"', 'id="why"')
-    m = m.replace('<a class="btn ghost" href="#faq">', '<a class="btn ghost" href="/faq">')
-
-    # ---- refreshed photos on home
-    def swap(m, old_src, new_key):
-        return re.sub(r'<img src="/assets/'+re.escape(old_src)+r'"[^>]*>', img(new_key+'.jpg', ALT[new_key]), m)
-    m = swap(m, 'tree-kiss.jpg', 'morgan-julia-2')
-    m = swap(m, 'elope-gorse.jpg', 'nicole-rilan-8')
-    m = swap(m, 'york-piggy.jpg', 'chloe-owen-9')
-    # masonry: replace some tiles
-    for old, new in [('minster.jpg','nicole-rilan-11'),('stair-overhead.jpg','ryan-niamh-13'),('piper.jpg','welton-mindy-5'),('arch-twirl.jpg','jimmy-verga-2'),('icecream-van.jpg','neha-raj-17'),('scott-mon.jpg','joe-kristina-5'),('bw-forehead.jpg','randy-sydney-14')]:
-        m = re.sub(r'<figure><img src="/assets/'+re.escape(old)+r'"[^>]*><figcaption class="mono">[^<]*</figcaption></figure>',
-                   '<figure>'+img(new+'.jpg', ALT[new])+f'<figcaption class="mono">{cap(new)}</figcaption></figure>', m)
-    # wedding-day strip
-    i = m.index('<div class="row">'); j = m.index('</div>', m.index('</figure>', m.rindex('<figure>', i, m.index('</section>', i)))) 
-    scenes = [('lukas-amanda-5','The quiet morning'),('morgan-julia-1','The squad'),('ryan-niamh-2','The walk'),('ryan-niamh-5','The "I do"'),
-              ('ryan-niamh-9','Everyone you love'),('randy-sydney-14','Just you two'),('ryan-niamh-16','The speeches'),('ryan-niamh-21','The dance floor'),('neha-raj-17','Last light')]
-    row = '<div class="row">' + ''.join(f'<figure>{img(k+".jpg", ALT[k])}<figcaption><span class="mono">Sc. {n}</span><b>{t}</b></figcaption></figure>' for n,(k,t) in enumerate(scenes,1))
-    m = m[:i] + row + m[j:]
-    # real testimonial
-    m = re.sub(r'<blockquote>.*?</blockquote>\s*<cite class="mono">.*?</cite>',
-               '<blockquote>“Stefan really has given us the best memories and we are so grateful for him. The most supportive, patient, and lovely <em>photographer.</em>”</blockquote>\n        <cite class="mono">Chris &amp; Nia</cite>', m, flags=re.S)
+    def figs(section, cls=''):
+        return ''.join(f'<figure>{img(fn, alt)}' + (f'<figcaption class="mono">{cp}</figcaption>' if cp else '') + '</figure>' for fn, alt, cp in P(section))
+    intro = P('home.intro'); tiles = P('home.tiles'); about = P('home.about'); band = P1('home.band')
+    tile_meta = [('/weddings', 'Weddings', 'The whole day, the full film. Tears, speeches, dance-floor chaos.'),
+                 ('/elopements', 'Elopements', 'Just you two, a view, and a very big "we did it".'),
+                 ('/proposals', 'Proposals', 'I hide in the bushes. You get the reaction on camera.'),
+                 ('/couples', 'Pre-wedding', 'Dress up, wander somewhere pretty, be a bit ridiculous. Photos and a short film.')]
+    tiles_html = ''.join(f'<a class="tile" href="{h}"><div class="img">{img(t[0], t[1])}</div><h3>{n}<span>→</span></h3><p>{d}</p></a>' for (h, n, d), t in zip(tile_meta, tiles))
+    day_html = ''.join(f'<figure>{img(fn, alt)}<figcaption><span class="mono">Sc. {i}</span><b>{cp}</b></figcaption></figure>' for i, (fn, alt, cp) in enumerate(P('home.day'), 1))
+    q = P1('home.quote'); cl = P1('home.closing')
+    m = f"""<section class="hero-film" aria-label="Showreel">
+    <div class="slate t mono"><span>Reel 2026</span><span>2.39 : 1</span></div>
+    <video src="/assets/reel.mp4" poster="/assets/reel-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Showreel of couples laughing, confetti, first kisses and golden-hour portraits"></video>
+    <div class="sub"><span>[laughing] okay wait, is it already rolling?</span></div>
+    <div class="slate b mono"><span>Edinburgh · London · Europe</span><span>00:00:18:00</span></div>
+  </section>
+  <section class="hero-copy wrap">
+    <p class="mono">Cinematic wedding &amp; couples photographer</p>
+    <h1>Your love story, but make it a <em>movie.</em></h1>
+    <p>Photos and films for couples who'd rather laugh than pose. Based in Edinburgh &amp; London, happy to jump on a plane.</p>
+    <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="/films">See the films</a></div>
+  </section>
+  <section class="intro wrap" aria-label="Introduction"><div class="grid">
+    <figure class="a">{img(intro[0][0], intro[0][1])}<figcaption class="mono">{intro[0][2]}</figcaption></figure>
+    <div class="b"><h2>I photograph people having the time of their <em>lives</em>, and all the tiny moments in between.</h2>
+      <p>The nervous laugh before the vows. The ice cream you definitely didn't share. The spin nobody planned.</p></div>
+    <figure class="c">{img(intro[1][0], intro[1][1])}<figcaption class="mono">{intro[1][2]}</figcaption></figure>
+  </div></section>
+  <section class="stories wrap" aria-label="Recent stories">
+    <div class="sec-head"><h2>Recent <em>stories</em></h2><p>A few favourites, from the Highlands to the Tube.</p></div>
+  </section>
+  {gallery(P('home.stories'))}
+  <section class="band" aria-label="Featured photo">{img(band[0], band[1])}<span class="credit mono">{band[2]}</span>
+    <div class="over"><h2>Somewhere between a film set and a day out with <em>friends.</em></h2></div></section>
+  <section class="scenes wrap" id="work"><div class="sec-head"><h2>Pick your <em>scene</em></h2><p>Four ways to work together. Same vibe, same colour, same guy with the camera.</p></div>
+    <div class="tiles">{tiles_html}</div></section>
+  <section class="about" id="about"><div class="wrap">
+    <div><div class="pair">{img(about[0][0], about[0][1], 'p1')}{img(about[1][0], about[1][1], 'p2')}</div></div>
+    <div><p class="mono">Hi, I'm Stefan</p><h2>Physicist by training. Hopeless <em>romantic</em> by trade.</h2>
+      <p>I spent years measuring light in a lab. Now I chase it at golden hour with couples who'd rather be having fun than holding a pose.</p>
+      <p>Expect good vibes, a few bad jokes, easy prompts that actually work, and photos that look like stills from your own film.</p>
+      <div class="facts"><span>Photo + film</span><span>Cinema cameras + drone</span><span>Same-day sneak peek</span><span>UK &amp; Europe</span></div>
+      <a class="btn ghost" href="/about">Get to know me</a></div>
+  </div></section>
+  <section class="day" aria-label="A wedding day in scenes">
+    <div class="wrap sec-head"><h2>A wedding day, <em>in scenes</em></h2><p>Scroll along →</p></div>
+    <div class="rail"><div class="row">{day_html}</div></div>
+  </section>
+  <section class="why wrap" id="why"><div class="cols">
+    <div class="col"><span class="mono">The vibe</span><h3>Zero awkwardness</h3><p>Most couples tell me they're awkward. None of them are by the end. Easy, slightly silly prompts, then I get out of the way.</p></div>
+    <div class="col"><span class="mono">The kit</span><h3>Photo + film, one person</h3><p>Cinema cameras, proper audio and a drone. One friendly face at your wedding instead of a whole crew.</p></div>
+    <div class="col"><span class="mono">The look</span><h3>Graded like a film still</h3><p>Warm, rich, a little nostalgic. Every frame coloured by hand, never a trendy preset.</p></div>
+  </div></section>
+  <section class="films" id="films"><div class="wrap">
+    <div class="still"><span class="mono">Now showing</span><img src="/assets/reel-poster.jpg" width="1280" height="536" alt="Still frame from the wedding showreel" loading="lazy"></div>
+    <div><h2>Now <em>showing</em></h2><ul class="listing">
+      <li><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Isaac &amp; Temcy <i>Edinburgh</i></span><span class="go mono">Watch ↗</span></a></li>
+      <li><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Lukas &amp; Amanda <i>Rüsselsheim</i></span><span class="go mono">Watch ↗</span></a></li>
+      <li><a href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener"><span class="t">Raj &amp; Neha <i>London</i></span><span class="go mono">Watch ↗</span></a></li>
+    </ul></div>
+  </div></section>
+  <section class="quote"><div class="wrap">{img(q[0], q[1])}
+    <div><blockquote>“Stefan really has given us the best memories and we are so grateful for him. The most supportive, patient, and lovely <em>photographer.</em>”</blockquote><cite class="mono">Chris &amp; Nia</cite></div>
+  </div></section>
+  <section class="insta wrap" aria-label="Instagram">
+    <div class="sec-head"><h2>Say hi on <em>Instagram</em></h2><a class="mono" href="https://www.instagram.com/pixelbystef/" target="_blank" rel="noopener">@pixelbystef ↗</a></div>
+    <div class="grid">{''.join(img(fn, alt) for fn, alt, cp in P('home.instagram'))}</div>
+  </section>
+  <section class="closing" id="chat">{img(cl[0], cl[1])}
+    <div class="over"><h2>Got a date? Let's make it a <em>good one.</em></h2><p>Tell me about you two. Coffee's on me, or a video call if you're far away.</p><a class="btn light" href="/contact">Let's chat</a></div>
+  </section>"""
     page('index.html', 'pixelbystef · Cinematic wedding & couples photographer, Edinburgh & London',
          "Cinematic wedding and couples photographer and filmmaker based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
 
     # ---------- WEDDINGS ----------
     body = phero('Weddings · photo &amp; film', 'The whole day. The full <em>film.</em>',
                  'From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.',
-                 'randy-sydney-1.jpg', 'Newlyweds on grand stone steps in Edinburgh Old Town', wide=True)
-    body += gallery(g('ryan-niamh-9','morgan-julia-2','ryan-niamh-13','lukas-amanda-2','randy-sydney-10','shana-daniel-3','ryan-niamh-22','neha-raj-12','lola-denis-18','morgan-julia-6','ryan-niamh-21','shana-daniel-13','randy-sydney-14','jingnan-nathan-7','lukas-amanda-3','neha-raj-17','pam-david-1','ryan-niamh-5','morgan-julia-1','shana-daniel-18','lola-denis-2'))
+                 'weddings.hero')
+    body += gallery(P('weddings.gallery'))
     body += feel('Real moments, a bit of <em>direction</em>, lots of colour.', [
         "Most of the day I blend in and let things happen: the hugs, the happy tears, your uncle's speech that runs ten minutes too long. When we need a shot, I jump in, keep it quick, and send you back to your drink.",
         "Everything is shot with cinema cameras and graded by hand, so your photos and your film look like they belong to the same movie.",
@@ -339,13 +429,13 @@ def build():
                    ('We plan', 'Moodboard, timeline and locations, built around the best light. I send reminders so you don\'t have to.'),
                    ('You enjoy it', 'On the day you get on with celebrating. A sneak peek lands within 24 hours, the rest within 4 weeks.')])
     body += cta()
-    page('weddings.html', 'Wedding photography & films · pixelbystef', 'Cinematic wedding photography and films in Edinburgh, London, the UK and Europe. Photo from £1,400, film from £1,600.', body, '/weddings', 'randy-sydney-1.jpg')
+    page('weddings.html', 'Wedding photography & films · pixelbystef', 'Cinematic wedding photography and films in Edinburgh, London, the UK and Europe. Photo from £1,400, film from £1,600.', body, '/weddings', P1('weddings.hero')[0])
 
     # ---------- ELOPEMENTS ----------
     body = phero('Elopements', 'Just you two. And a very big <em>view.</em>',
                  "Skip the seating plan. A Highland loch, Calton Hill at sunrise, a city registry office followed by pints. I'll help you pick the spot, time it for the light, and make it feel like the opening scene of a film.",
-                 'nicole-rilan-2.jpg', 'Tiny couple on a Highland hilltop', wide=True)
-    body += gallery(g('nicole-rilan-5','nicole-rilan-8','nicole-rilan-6','maxwell-kat-5','nicole-rilan-14','nicole-rilan-11','maxwell-kat-9','nicole-rilan-15','nicole-rilan-19','maxwell-kat-18') + [('elope-arch.jpg', "Couple kissing inside a ruined stone arch on Arthur's Seat", 'Byram &amp; Alyssa'), ('piper.jpg', "Couple with a bagpiper on Arthur's Seat", 'Byram &amp; Alyssa')])
+                 'elopements.hero')
+    body += gallery(P('elopements.gallery'))
     body += feel('Small day. Big <em>feelings.</em>', [
         "Elopements are my favourite kind of adventure. No schedule to keep, no one to entertain, just the two of you and whatever the Scottish weather decides to do.",
         "I know the good spots in and around Edinburgh (and the midge-free ones), and I'm happy to travel for the right view. We start with an engagement shoot so you're comfy with me long before the day itself."])
@@ -360,13 +450,13 @@ def build():
                    ('We plan', 'Location scouting, timings for the light, the paperwork people, and a backup plan for rain.'),
                    ('We go', 'Engagement shoot first, then the big day. A sneak peek arrives within 24 hours.')])
     body += cta('Just the two of you? Let\'s make it <em>epic.</em>')
-    page('elopements.html', 'Elopement photography in Scotland & beyond · pixelbystef', 'Cinematic elopement photography in Edinburgh, the Highlands and beyond. Engagement shoot plus 4-hour elopement coverage for £1,400.', body, '/elopements', 'nicole-rilan-8.jpg')
+    page('elopements.html', 'Elopement photography in Scotland & beyond · pixelbystef', 'Cinematic elopement photography in Edinburgh, the Highlands and beyond. Engagement shoot plus 4-hour elopement coverage for £1,400.', body, '/elopements', P1('elopements.hero')[0])
 
     # ---------- PROPOSALS ----------
     body = phero('Proposals', 'I hide. You ask. We get the <em>reaction.</em>',
                  "Proposals are basically a heist with a happy ending. We plan it together, I play the tourist with a camera, and you get the moment they realise, from start to “YES”.",
-                 'hero-cliff.jpg', 'A tiny couple on the edge of the white Seven Sisters cliffs', wide=True)
-    body += gallery([('proposal-ring.jpg', 'Man on one knee holding out a ring', 'Zavier &amp; Shawna')] + g('joe-kristina-5','hugo-jessica-3','hadar-samiya-2','brandon-chloe-11','eric-melody-1','hugo-jessica-8','justin-christina-1','eric-melody-12','brandon-chloe-17','ryan-eleni-1','hadar-samiya-10') + [('twirl.jpg', 'Couple spinning on a clifftop', 'Zavier &amp; Shawna')])
+                 'proposals.hero')
+    body += gallery(P('proposals.gallery'))
     body += feel('The secret <em>mission.</em>', [
         "We'll work out where you'll stand, what the signal is, and how to get them there without suspicion. I'll scout the spot beforehand so I know exactly where the light falls.",
         "After the big moment (and the happy crying), we stay for a relaxed couple shoot nearby, so you get the reaction and the celebration."])
@@ -381,13 +471,13 @@ def build():
                    ('The recce', 'I scout the spot, work out where to hide, and agree the signal with you.'),
                    ('The YES', 'I capture the moment, then we celebrate with a 2-hour shoot nearby.')])
     body += cta('Planning to pop the <em>question?</em>', "Message me. I'm very good at keeping secrets.")
-    page('proposals.html', 'Proposal photography · pixelbystef', 'Secret proposal photography in Edinburgh, London and beyond: planning, the moment, and a 2-hour shoot after. £350.', body, '/proposals', 'hero-cliff.jpg')
+    page('proposals.html', 'Proposal photography · pixelbystef', 'Secret proposal photography in Edinburgh, London and beyond: planning, the moment, and a 2-hour shoot after. £350.', body, '/proposals', P1('proposals.hero')[0])
 
     # ---------- PRE-WEDDING / COUPLES ----------
     body = phero('Pre-wedding &amp; couples', 'Main-character energy, on <em>demand.</em>',
                  "Pre-wedding shoots, engagements, anniversaries, or “we just want nice photos of us”. We wander somewhere beautiful, I give you daft prompts, you laugh, I shoot, and I film a short movie of it too.",
-                 'tube-train.jpg', 'Couple on a Tube platform as a train rushes past', wide=True)
-    body += gallery(g('chloe-owen-9','chloe-owen-16','jimmy-verga-2','welton-mindy-5','nick-melissa-16','ian-shin-13','joe-juliet-5','hunter-laura-16','chloe-owen-20','johan-kristina-13','welton-mindy-1','sid-sruti-3') + [('phonebox.jpg', 'Couple in wedding outfits inside a red phone box', 'Dickson &amp; Michelle'), ('blossom-lift.jpg', 'Man lifting his partner under cherry blossom', 'Laura &amp; Matt'), ('royal-mile.jpg', 'Couple pointing at a Royal Mile street sign', 'Jojo &amp; Peter')])
+                 'couples.hero')
+    body += gallery(P('couples.gallery'))
     body += feel('An excuse to be a bit <em>ridiculous.</em>', [
         "Most couples tell me they're awkward in front of the camera. None of them are by the end. I'll give you easy, slightly silly prompts, and you'll forget I'm there.",
         "Getting married soon? A pre-wedding shoot is also the best way to get comfy with me before the big day, and you get a short film to show everyone at the reception."])
@@ -402,7 +492,7 @@ def build():
                    ('We plan', 'Moodboard, outfits, locations and timing for the best light.'),
                    ('We play', 'Three hours of wandering, laughing and a few daft prompts. Sneak peek within 24 hours.')])
     body += cta('Fancy starring in your own <em>film?</em>')
-    page('couples.html', 'Pre-wedding & couples photography · pixelbystef', 'Cinematic pre-wedding and couples photo + film sessions in Edinburgh, London and beyond. 3 hours, photos and a short film, £550.', body, '/couples', 'tube-train.jpg')
+    page('couples.html', 'Pre-wedding & couples photography · pixelbystef', 'Cinematic pre-wedding and couples photo + film sessions in Edinburgh, London and beyond. 3 hours, photos and a short film, £550.', body, '/couples', P1('couples.hero')[0])
 
     # ---------- FILMS ----------
     body = '''<section class="hero-film" aria-label="Showreel">
@@ -428,7 +518,7 @@ def build():
   <div><p class="mono">About</p><h1>Hi, I'm <em>Stefan.</em></h1>
   <p class="lead">Physicist by training. Hopeless romantic by trade. Based between Edinburgh and London.</p>
   <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="/films">See the films</a></div></div>
-  <div class="about-pair">{img('stefan-heart.jpg', 'Stefan making a heart shape with his arms and grinning', lazy=False)}{img('stefan-camera.jpg', 'Stefan laughing, holding a camera', lazy=False)}</div>
+  <div class="about-pair">{''.join(img(fn, alt, lazy=False) for fn, alt, cp in P('about.photos')[:2])}</div>
 </div></section>'''
     body += feel('I was trained to measure light. Now I mostly <em>chase</em> it.', [
         "Across hillsides at golden hour, through confetti, onto dance floors at 11pm. The physics never really left: I get unreasonably excited about backlight, reflections and the way light wraps around a face. That's why my photos look the way they do.",
@@ -439,11 +529,7 @@ def build():
     body += '<div class="col"><span class="mono">The kit</span><h3>Photo + film</h3><p>Cinema cameras, pro audio and a drone, all run by one friendly face.</p></div>'
     body += '<div class="col"><span class="mono">The nerd bit</span><h3>Obsessed with light</h3><p>I plan timings around the sun, so golden hour happens on purpose.</p></div>'
     body += '</div></section>'
-    body += gallery([
-        ('run-field.jpg', 'Couple running and laughing across a field', 'Lizz &amp; Jack'),
-        ('peekaboo.jpg', 'Couple peeking around a stone pillar', 'Jojo &amp; Peter'),
-        ('river-lift.jpg', 'Man lifting his partner on a riverside path', 'Jae &amp; Niki'),
-    ])
+    body += gallery(P('about.gallery'))
     body += cta()
     page('about.html', 'About Stefan · pixelbystef', 'Stefan Wijaya: physicist by training, cinematic wedding and couples photographer and filmmaker based in Edinburgh and London.', body, '/about', 'stefan-heart.jpg')
 
@@ -470,7 +556,7 @@ def build():
     <h1>Let's make something <em>good.</em></h1>
     <p>Tell me a bit about you two. I reply within 48 hours, usually with too many exclamation marks.</p>
     <p>Prefer email? <span class="email">pixelbystef@gmail.com</span></p>
-    {img('blossom-laugh.jpg', 'Couple laughing forehead to forehead under cherry blossom')}
+    {img(*P1('contact.photo')[:2])}
   </div>
   <form class="enquiry" action="/api/enquiry" method="post">
     <label class="full"><span>Your names (both of you!)</span><input id="f-names" name="names" required maxlength="120" autocomplete="name"></label>
@@ -506,7 +592,16 @@ def build():
     missing = []
     for u in sorted(used):
         src = os.path.join(ASSETS, u)
-        if os.path.exists(src): shutil.copy(src, os.path.join(OUT, 'assets', u))
+        if os.path.exists(src):
+            dst = os.path.join(OUT, 'assets', u)
+            if u.lower().endswith('.jpg'):
+                im = Image.open(src)
+                if max(im.size) > 2200 or os.path.getsize(src) > 900_000:
+                    from PIL import ImageOps
+                    im = ImageOps.exif_transpose(im).convert('RGB')
+                    im.thumbnail((2000, 2000) if im.width > im.height else (1300, 1300), Image.LANCZOS)
+                    im.save(dst, quality=78, optimize=True, progressive=True); continue
+            shutil.copy(src, dst)
         else: missing.append(u)
     print('pages:', sorted(f for f in os.listdir(OUT) if f.endswith('.html')))
     print('assets:', len(used), 'missing:', missing)

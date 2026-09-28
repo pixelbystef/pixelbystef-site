@@ -1,0 +1,234 @@
+# ==============================================================
+#  pixelbystef.com - which photo goes where
+# ==============================================================
+#
+#  HOW TO CHANGE A PHOTO
+#   1. Put the photo (a normal JPG export, any size) in the
+#      _web_revamp/assets folder. The site shrinks big files for you.
+#   2. Type its file name under the section where it should appear.
+#      The order here is the order on the page.
+#   3. Ask Claude to "publish the website".
+#
+#  OPTIONAL EXTRAS on the same line, separated by  |
+#      file.jpg | description for screen readers & Google | caption
+#   - Caption: the small name shown when you hover a photo.
+#     If left out, it's made from the file name
+#     (ryan-niamh-9.jpg -> "Ryan & Niamh"). Write  -  for no caption.
+#   - Landscape photos automatically take up two columns in galleries.
+#     Tip: count portrait = 1, landscape = 2. If the total divides by 3,
+#     the last row of the grid is full with no empty gap.
+#
+#  Lines starting with # are notes and are ignored.
+# ==============================================================
+
+
+# ---------------- HOMEPAGE ----------------
+
+[home.intro]
+# the two photos either side of "I photograph people having the time of their lives"
+tube-dance.jpg | Couple dancing on a London Underground platform | Laura & Matt
+nicole-rilan-e7138.jpg | Couple dancing in silhouette against a sunset sky
+
+[home.stories]
+# the "Recent stories" grid
+brenda-eduard-0882.jpg | Groom lifting the bride in front of the Natural History Museum
+dickson-michelle-0058.jpg | Couple nose to nose inside a red phone box
+claire-lucas-1090.jpg | Couple framed by a stone archway overlooking a garden
+jojo-peter-9792.jpg | Couple standing in front of an ivy-covered wall
+ryan-niamh-5526.jpg | Newlyweds kissing in a sandstone doorway
+weisheng-3069.jpg | Couple reflected in a round mirror | Weisheng
+nicole-rilan-e7380.jpg | Couple walking down the Scott Monument steps
+tondi-amara-3051.jpg | Couple at the end of a long marble corridor
+cyrielle-ola-3663.jpg | Bride on a grand red-carpeted staircase
+jae-niki-7733.jpg | Couple silhouetted in an alley facing York Minster
+york-icecream.jpg | Woman offering an ice cream cone with a grin | Jae & Niki
+brenda-eduard-0992.jpg | Heart-shaped shadow of a couple's hands
+claire-lucas-1196.jpg | Couple walking past the Royal Albert Hall
+weisheng-2873.jpg | Couple laughing against a stone column | Weisheng
+jojo-peter-9796.jpg | Couple on white steps in an Edinburgh close
+dickson-michelle-9819.jpg | Couple in wedding outfits by Westminster Bridge
+byram-alyssa-e8247.jpg | Couple sitting on red stairs outside a stone house
+icecream-van.jpg | Bride and groom beside a vintage ice cream van | Dickson & Michelle
+
+[home.band]
+# the big full-width photo
+hero-cliff.jpg | A tiny couple on the edge of the white Seven Sisters cliffs | Zavier & Shawna · Seven Sisters
+
+[home.tiles]
+# the four "Pick your scene" squares, in this order: Weddings, Elopements, Proposals, Pre-wedding
+morgan-julia-2.jpg
+nicole-rilan-8.jpg
+weisheng-2799.jpg | Man proposing on one knee in a ruined church garden | Weisheng
+chloe-owen-9.jpg
+
+[home.about]
+# two photos of Stefan next to "Hi, I'm Stefan"
+stefan-heart.jpg | Stefan making a heart shape with his arms and grinning | -
+stefan-camera.jpg | Stefan laughing, holding a camera | -
+
+[home.day]
+# "A wedding day, in scenes". Here the third part is the scene title.
+lukas-amanda-5.jpg | Groom getting ready by a bright window | The quiet morning
+morgan-julia-1.jpg | Bride with her bridesmaids in pink | The squad
+ryan-niamh-2.jpg | Bride walking down the church aisle with her father | The walk
+ryan-niamh-5.jpg | Groom grinning as he places the ring on the bride | The "I do"
+ryan-niamh-9.jpg | Groom and groomsmen in kilts cheering with the bride | Everyone you love
+randy-sydney-14.jpg | Newlyweds walking hand in hand down a cobbled lane | Just you two
+ryan-niamh-16.jpg | Father of the bride giving a speech | The speeches
+ryan-niamh-22.jpg | First dance under blue lights | The dance floor
+neha-raj-17.jpg | Couple silhouetted at sunset | Last light
+
+[home.quote]
+# photo next to the testimonial
+field-kiss.jpg | Couple kissing in a green field, showing off an engagement ring
+
+[home.instagram]
+# six small squares in "Say hi on Instagram"
+tube-train.jpg | Couple on a Tube platform as a train rushes past
+jojo-peter-9928.jpg | Couple sitting on a hilltop under a big blue sky
+brenda-eduard-1077.jpg | Couple making a heart with their hands against the sky
+peekaboo.jpg | Couple peeking around a stone pillar
+nicole-rilan-e7065.jpg | Couple embracing above the Edinburgh skyline at dusk
+blossom-sit.jpg | Couple sitting in grass under cherry blossom
+
+[home.closing]
+# the photo behind "Got a date?"
+york-ruin.jpg | Couple walking past a ruined abbey arch in York
+
+
+# ---------------- WEDDINGS ----------------
+
+[weddings.hero]
+wedding-stories.jpg | Bride and groom laughing through a shower of confetti | -
+
+[weddings.gallery]
+ryan-niamh-9.jpg
+morgan-julia-2.jpg
+cyrielle-ola-3663.jpg | Bride on a grand red-carpeted staircase
+ryan-niamh-13.jpg
+lukas-amanda-2.jpg
+randy-sydney-1.jpg
+randy-sydney-10.jpg
+shana-daniel-3.jpg
+ryan-niamh-22.jpg
+neha-raj-12.jpg
+morgan-julia-6.jpg
+cyrielle-ola-4288.jpg | Couple reading their vows
+ryan-niamh-5526.jpg | Newlyweds kissing in a sandstone doorway
+randy-sydney-14.jpg
+jingnan-nathan-7.jpg
+lukas-amanda-3.jpg
+neha-raj-18.jpg
+neha-raj-17.jpg
+pam-david-1.jpg
+ryan-niamh-5.jpg
+morgan-julia-1.jpg
+lola-denis-2.jpg
+shana-daniel-1.jpg
+tree-kiss.jpg | Newlyweds kissing under a huge old tree | Cyrielle & Ola
+bus.jpg | Newlyweds on the top deck of a vintage bus | Cyrielle & Ola
+ryan-niamh-16.jpg
+lola-denis-13.jpg
+jingnan-nathan-3.jpg
+
+
+# ---------------- ELOPEMENTS ----------------
+
+[elopements.hero]
+nicole-rilan-2.jpg
+
+[elopements.gallery]
+nicole-rilan-5.jpg
+nicole-rilan-8.jpg
+nicole-rilan-6.jpg
+maxwell-kat-5.jpg
+nicole-rilan-14.jpg
+nicole-rilan-11.jpg
+maxwell-kat-9.jpg
+nicole-rilan-15.jpg
+nicole-rilan-19.jpg
+maxwell-kat-18.jpg
+maxwell-kat-1.jpg
+elope-arch.jpg | Couple kissing inside a ruined stone arch on Arthur's Seat | Byram & Alyssa
+piper.jpg | Couple with a bagpiper on Arthur's Seat | Byram & Alyssa
+elope-read.jpg | Bride smiling while her partner reads his vows | Byram & Alyssa
+elope-gorse.jpg | Bride standing among yellow gorse on Arthur's Seat | Byram & Alyssa
+scott-mon.jpg | Couple on the steps of the Scott Monument | Byram & Alyssa
+
+
+# ---------------- PROPOSALS ----------------
+
+[proposals.hero]
+hero-cliff.jpg | A tiny couple on the edge of the white Seven Sisters cliffs | -
+
+[proposals.gallery]
+weisheng-2799.jpg | Man proposing on one knee in a ruined church garden | Weisheng
+proposal-ring.jpg | Man on one knee holding out a ring | Zavier & Shawna
+joe-kristina-5.jpg
+hugo-jessica-3.jpg
+hadar-samiya-2.jpg
+brandon-chloe-11.jpg
+eric-melody-1.jpg
+hugo-jessica-8.jpg
+justin-christina-1.jpg
+eric-melody-12.jpg
+brandon-chloe-17.jpg
+ryan-eleni-1.jpg
+hadar-samiya-10.jpg
+prop-hand.jpg | Close-up of a hand with a new engagement ring | Zavier & Shawna
+twirl.jpg | Couple spinning on a clifftop | Zavier & Shawna
+prop-kiss.jpg | Couple kissing, laughing, by the sea | Zavier & Shawna
+
+
+# ---------------- PRE-WEDDING & COUPLES ----------------
+
+[couples.hero]
+tube-train.jpg | Couple on a Tube platform as a train rushes past | -
+
+[couples.gallery]
+brenda-eduard-0882.jpg | Groom lifting the bride in front of the Natural History Museum
+chloe-owen-9.jpg
+dickson-michelle-0058.jpg | Couple nose to nose inside a red phone box
+jojo-peter-9792.jpg | Couple standing in front of an ivy-covered wall
+nicole-rilan-e7138.jpg | Couple dancing in silhouette against a sunset sky
+claire-lucas-1090.jpg | Couple framed by a stone archway overlooking a garden
+weisheng-3069.jpg | Couple reflected in a round mirror | Weisheng
+tondi-amara-3051.jpg | Couple at the end of a long marble corridor
+brenda-eduard-1077.jpg | Couple making a heart with their hands against the sky
+jae-niki-7733.jpg | Couple silhouetted in an alley facing York Minster
+chloe-owen-16.jpg
+welton-mindy-5.jpg
+jimmy-verga-2.jpg
+nick-melissa-16.jpg
+ian-shin-13.jpg
+joe-juliet-5.jpg
+claire-lucas-1098.jpg | Couple leaning on a sunny wall, laughing
+tondi-amara-3103.jpg | Couple under a museum archway
+jojo-peter-9928.jpg | Couple sitting on a hilltop under a big blue sky
+dickson-michelle-9819.jpg | Couple in wedding outfits by Westminster Bridge
+weisheng-2892.jpg | Couple on a bench inside a ruined church | Weisheng
+byram-alyssa-e8247.jpg | Couple sitting on red stairs outside a stone house
+brenda-eduard-0992.jpg | Heart-shaped shadow of a couple's hands
+hunter-laura-16.jpg
+johan-kristina-13.jpg
+york-icecream.jpg | Woman offering an ice cream cone with a grin | Jae & Niki
+
+
+# ---------------- ABOUT ----------------
+
+[about.photos]
+stefan-heart.jpg | Stefan making a heart shape with his arms and grinning | -
+stefan-camera.jpg | Stefan laughing, holding a camera | -
+
+[about.gallery]
+run-field.jpg | Couple running and laughing across a field | Lizz & Jack
+brenda-eduard-0808.jpg | Couple on the steps of a red-brick museum
+jojo-peter-9789.jpg | Couple in a sunny courtyard garden
+river-lift.jpg | Man lifting his partner on a riverside path | Jae & Niki
+peekaboo.jpg | Couple peeking around a stone pillar | Jojo & Peter
+
+
+# ---------------- CONTACT ----------------
+
+[contact.photo]
+blossom-laugh.jpg | Couple laughing forehead to forehead under cherry blossom | -
