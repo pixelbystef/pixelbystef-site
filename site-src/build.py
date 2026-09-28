@@ -12,6 +12,7 @@ def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
 # ---------------------------------------------------------------- CSS
 EXTRA_CSS = r"""
+.hfilms{background:var(--paper-2);padding-block:clamp(64px,9vw,120px)}
 .intro{background:var(--paper-2);padding-block:clamp(56px,8vw,120px)}.intro .a img,.intro .c img{margin:0}
 .films .still{padding-block:0;background:none}.films .still img{display:block;border-radius:2px}
 .hero-film.bare{padding-block:0;background:#0d0b0a}.hero-film.bare video{display:block}.hero-film.bare .sub{bottom:clamp(12px,2.4vw,30px)}
@@ -440,7 +441,6 @@ def build():
                  ('/proposals', 'Proposals', 'I hide in the bushes. You get the reaction on camera.'),
                  ('/couples', 'Pre-wedding', 'Dress up, wander somewhere pretty, be a bit ridiculous. Photos and a short film.')]
     tiles_html = ''.join(f'<a class="tile" href="{h}"><div class="img">{img(t[0], t[1])}</div><h3>{n}<span>→</span></h3><p>{d}</p></a>' for (h, n, d), t in zip(tile_meta, tiles))
-    film_items = ''.join(f'      <li><a href="https://www.youtube.com/watch?v={vid}" target="_blank" rel="noopener"><span class="t">{html.escape(names)}</span><span class="go mono">Watch &#8599;</span></a></li>\n' for vid, names, line in films())
     day_html = ''.join(f'<figure>{img(fn, alt)}<figcaption><span class="mono">Sc. {i}</span><b>{cp}</b></figcaption></figure>' for i, (fn, alt, cp) in enumerate(P('home.day'), 1))
     q = P1('home.quote'); cl = P1('home.closing')
     m = f"""<section class="hero-film bare" aria-label="Showreel">
@@ -479,16 +479,12 @@ def build():
     <div class="wrap sec-head"><h2>A wedding day, <em>in scenes</em></h2><p>Scroll along →</p></div>
     <div class="rail"><div class="row">{day_html}</div></div>
   </section>
-  <section class="why wrap" id="why"><div class="cols">
-    <div class="col"><span class="mono">The vibe</span><h3>Zero awkwardness</h3><p>Most couples tell me they're awkward. None of them are by the end. Easy, slightly silly prompts, then I get out of the way.</p></div>
-    <div class="col"><span class="mono">The kit</span><h3>Photo + film, one person</h3><p>Cinema cameras, proper audio and a drone. One friendly face at your wedding instead of a whole crew.</p></div>
-    <div class="col"><span class="mono">The look</span><h3>Graded like a film still</h3><p>Warm, rich, a little nostalgic. Every frame coloured by hand, never a trendy preset.</p></div>
+  <section class="hfilms" id="films"><div class="wrap">
+    <div class="sec-head"><h2>Now <em>showing</em></h2><p>Press play. Real weddings, shot and cut by me.</p></div>
+    {reels_html()}
+    <p class="reels-more"><a class="btn ghost" href="/films">All films</a></p>
   </div></section>
-  <section class="films" id="films"><div class="wrap">
-    <div class="still"><img src="/assets/reel-poster.jpg" width="1280" height="536" alt="Still frame from the wedding showreel" loading="lazy"></div>
-    <div><h2>Now <em>showing</em></h2><ul class="listing">
-{film_items}    </ul></div>
-  </div></section>
+  {REEL_JS}
   <section class="quote"><div class="wrap">{img(q[0], q[1])}
     <div><blockquote>“Stefan really has given us the best memories and we are so grateful for him. The most supportive, patient, and lovely <em>photographer.</em>”</blockquote><cite class="mono">Chris &amp; Nia</cite></div>
   </div></section>
