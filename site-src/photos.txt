@@ -63,8 +63,8 @@ chloe-owen-9.jpg
 
 [home.about]
 # two photos of Stefan next to "Hi, I'm Stefan"
-stefan-camera-2.jpg | Stefan holding his camera over his shoulder, hand on hip | -
-stefan-stool.jpg | Stefan laughing, sitting on a tall stool | -
+stefan-standing.jpg | Stefan laughing, hands in pockets | -
+stefan-stool-camera.jpg | Stefan laughing on a stool, holding his camera | -
 
 [home.day]
 # "A wedding day, in scenes". Here the third part is the scene title.
@@ -248,8 +248,8 @@ https://youtu.be/TU2_6s_62qI | The galleries, the streets, and everything in bet
 # ---------------- ABOUT ----------------
 
 [about.photos]
-stefan-camera.jpg | Stefan laughing, holding a camera | -
-stefan-stool.jpg | Stefan laughing, sitting on a tall stool | -
+stefan-standing.jpg | Stefan laughing, hands in pockets | -
+stefan-stool-camera.jpg | Stefan laughing on a stool, holding his camera | -
 
 [about.gallery]
 run-field.jpg | Couple running and laughing across a field | Lizz & Jack

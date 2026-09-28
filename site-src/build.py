@@ -12,6 +12,8 @@ def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
 # ---------------------------------------------------------------- CSS
 EXTRA_CSS = r"""
+.intro{background:var(--paper-2);padding-block:clamp(56px,8vw,120px)}.intro .a img,.intro .c img{margin:0}
+.films .still{padding-block:0;background:none}.films .still img{display:block;border-radius:2px}
 .hero-film.bare{padding-block:0;background:#0d0b0a}.hero-film.bare video{display:block}.hero-film.bare .sub{bottom:clamp(12px,2.4vw,30px)}
 /* films: thumbnail cards that turn into the player on click */
 .reels{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(22px,3vw,44px) clamp(18px,3vw,40px)}
@@ -446,12 +448,12 @@ def build():
     <p>Photos and films for couples who'd rather laugh than pose. Based in Edinburgh &amp; London, happy to jump on a plane.</p>
     <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="/films">See the films</a></div>
   </section>
-  <section class="intro wrap" aria-label="Introduction"><div class="grid">
+  <section class="intro" aria-label="Introduction"><div class="wrap"><div class="grid">
     <figure class="a">{img(intro[0][0], intro[0][1])}<figcaption class="mono">{intro[0][2]}</figcaption></figure>
     <div class="b"><h2>I photograph people having the time of their <em>lives</em>, and all the tiny moments in between.</h2>
       <p>The nervous laugh before the vows. The ice cream you definitely didn't share. The spin nobody planned.</p></div>
     <figure class="c">{img(intro[1][0], intro[1][1])}<figcaption class="mono">{intro[1][2]}</figcaption></figure>
-  </div></section>
+  </div></div></section>
   <section class="stories wrap" aria-label="Recent stories">
     <div class="sec-head"><h2>Recent <em>stories</em></h2><p>A few favourites, from the Highlands to the Tube.</p></div>
   </section>
@@ -478,7 +480,7 @@ def build():
     <div class="col"><span class="mono">The look</span><h3>Graded like a film still</h3><p>Warm, rich, a little nostalgic. Every frame coloured by hand, never a trendy preset.</p></div>
   </div></section>
   <section class="films" id="films"><div class="wrap">
-    <div class="still"><span class="mono">Now showing</span><img src="/assets/reel-poster.jpg" width="1280" height="536" alt="Still frame from the wedding showreel" loading="lazy"></div>
+    <div class="still"><img src="/assets/reel-poster.jpg" width="1280" height="536" alt="Still frame from the wedding showreel" loading="lazy"></div>
     <div><h2>Now <em>showing</em></h2><ul class="listing">
 {film_items}    </ul></div>
   </div></section>

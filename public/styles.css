@@ -196,6 +196,8 @@ footer a:hover{color:var(--rose)}
 .email{user-select:all;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
+.intro{background:var(--paper-2);padding-block:clamp(56px,8vw,120px)}.intro .a img,.intro .c img{margin:0}
+.films .still{padding-block:0;background:none}.films .still img{display:block;border-radius:2px}
 .hero-film.bare{padding-block:0;background:#0d0b0a}.hero-film.bare video{display:block}.hero-film.bare .sub{bottom:clamp(12px,2.4vw,30px)}
 /* films: thumbnail cards that turn into the player on click */
 .reels{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(22px,3vw,44px) clamp(18px,3vw,40px)}
