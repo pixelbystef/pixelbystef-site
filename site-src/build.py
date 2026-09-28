@@ -588,11 +588,9 @@ def build():
     page('couples.html', 'Pre-wedding & couples photography · pixelbystef', 'Cinematic pre-wedding and couples photo + film sessions in Edinburgh, London and beyond. 3 hours, photos and a short film, £550.', body, '/couples', P1('couples.hero')[0])
 
     # ---------- FILMS ----------
-    body = '''<section class="hero-film" aria-label="Showreel">
-    <div class="slate t mono"><span>Reel 2026</span><span>2.39 : 1</span></div>
+    body = '''<section class="hero-film bare" aria-label="Showreel">
     <video src="/assets/reel.mp4" poster="/assets/reel-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Showreel of couples laughing, confetti and first kisses"></video>
     <div class="sub"><span>[music swells]</span></div>
-    <div class="slate b mono"><span>Edinburgh · London · Europe</span><span>00:00:18:00</span></div>
   </section>
   <section class="phero" style="padding-bottom:0"><div class="wrap" style="grid-template-columns:1fr">
     <div><p class="mono">Films</p><h1>Now <em>showing</em></h1><p class="lead">Cinema cameras, proper audio and a drone, cut into films you'll actually rewatch. Grab some popcorn.</p></div>
