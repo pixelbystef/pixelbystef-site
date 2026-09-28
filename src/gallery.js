@@ -101,6 +101,10 @@ function niceDate(iso) {
 }
 
 // ---------- pages ----------
+// "Sneak peek · Proposal · 16 September 2026" for previews, "Proposal · 16 September 2026" for full galleries.
+function eyebrowText(g) {
+  return [g.kind === "preview" ? "Sneak peek" : "", g.type, niceDate(g.date)].filter(Boolean).join(" · ");
+}
 function fill(tpl, vars) {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (k in vars ? vars[k] : ""));
 }
@@ -122,7 +126,7 @@ function lockPage(g, { error = "", expired = false, missing = false } = {}) {
       ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ""}
     </form>`;
   }
-  const eyebrow = g && !missing ? esc([g.type, niceDate(g.date)].filter(Boolean).join(" · ")) : "Private gallery";
+  const eyebrow = g && !missing ? esc(eyebrowText(g)) : "Private gallery";
   return fill(LOCK, { title_text: esc(g && !missing ? g.title : "Gallery"), eyebrow, title, lead, form });
 }
 
@@ -133,7 +137,6 @@ function galleryPage(g, favs) {
     title: g.title,
     rawOpen: raw,
     rawUntil: raw ? niceDate(g.raw_until) : "",
-    chapters: chapterRanges(g),
     photos: g.photos.map((p) => {
       const o = { id: p.id, w: p.w, h: p.h, hi: [p.high.name, p.high.size, p.high.w, p.high.h] };
       if (p.web) o.web = [p.web.name, p.web.size, p.web.w, p.web.h];
@@ -152,7 +155,7 @@ function galleryPage(g, favs) {
   return fill(PAGE, {
     title_text: esc(g.title),
     slug: esc(g.slug),
-    eyebrow: esc([g.type, niceDate(g.date)].filter(Boolean).join(" · ")),
+    eyebrow: esc(eyebrowText(g)),
     title: rich(g.title.replace("&", "*&*")),
     cover: cover ? `/g/${g.slug}/p/${encodeURIComponent(cover)}.jpg` : "",
     cover_pos: esc(g.cover_position || "50% 50%"),
@@ -160,7 +163,7 @@ function galleryPage(g, favs) {
     heading: rich(g.heading || ""),
     intro: intro + expiry,
     count: String(g.photos.length),
-    chapter_count: String(Math.max(1, (g.chapters || []).length)),
+    days_left: g.expires ? String(Math.max(0, Math.ceil((Date.parse(g.expires + "T23:59:59Z") - Date.now()) / 864e5))) : "∞",
     data: JSON.stringify(data).replace(/</g, "\\u003c"),
   });
 }
