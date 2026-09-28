@@ -209,6 +209,7 @@ footer a:hover{color:var(--rose)}
 .reel figcaption{padding-top:14px;margin-top:0;color:var(--ink)}
 .reel figcaption b{display:block;font-family:var(--serif);font-weight:400;font-size:clamp(24px,2.6vw,34px);line-height:1.1}
 .reel figcaption i{display:block;color:var(--muted);margin-top:6px;font-size:15px}
+.wfilms{padding-block:clamp(64px,9vw,120px)}
 .reels-more{margin-top:clamp(28px,4vw,48px);text-align:center}
 @media (max-width:760px){.reels{grid-template-columns:1fr}}
 /* instagram: post cards with real comments */

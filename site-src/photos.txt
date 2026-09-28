@@ -104,33 +104,35 @@ https://www.youtube.com/watch?v=LtGcSnJ2k2s | Isaac & Temcy | "To love and to ch
 wedding-stories.jpg | Bride and groom laughing through a shower of confetti | -
 
 [weddings.gallery]
+# short on purpose (3 rows): portrait = 1, landscape = 2, keep the total at 9.
 ryan-niamh-13.jpg | Newlyweds kissing on a staircase, seen from above
+randy-sydney-1.jpg
+ryan-niamh-5.jpg
 morgan-julia-2.jpg
 cyrielle-ola-3663.jpg | Bride on a grand red-carpeted staircase
-lukas-amanda-2.jpg
-randy-sydney-1.jpg
-randy-sydney-10.jpg
-shana-daniel-3.jpg
-ryan-niamh-22.jpg
-neha-raj-12.jpg
-morgan-julia-6.jpg
-cyrielle-ola-4288.jpg | Couple reading their vows
-shana-daniel-2644.jpg | Wedding rings resting on the bouquet | -
-ryan-niamh-5526.jpg | Newlyweds kissing in a sandstone doorway
-randy-sydney-9440.jpg | Newlyweds kissing under a stone railway arch
-jingnan-nathan-7.jpg
-lukas-amanda-3.jpg
 neha-raj-18.jpg
-neha-raj-17.jpg
-pam-david-1.jpg
-ryan-niamh-5.jpg
-morgan-julia-1.jpg
-lola-denis-2.jpg
-jingnan-nathan-3.jpg
-tree-kiss.jpg | Newlyweds kissing under a huge old tree | Cyrielle & Ola
-bus.jpg | Newlyweds on the top deck of a vintage bus | Cyrielle & Ola
-ryan-niamh-16.jpg
-lola-denis-13.jpg
+# spares - remove the # to use one (and take another out):
+# lukas-amanda-2.jpg
+# randy-sydney-10.jpg
+# shana-daniel-3.jpg
+# ryan-niamh-22.jpg
+# neha-raj-12.jpg
+# morgan-julia-6.jpg
+# cyrielle-ola-4288.jpg | Couple reading their vows
+# shana-daniel-2644.jpg | Wedding rings resting on the bouquet | -
+# ryan-niamh-5526.jpg | Newlyweds kissing in a sandstone doorway
+# randy-sydney-9440.jpg | Newlyweds kissing under a stone railway arch
+# jingnan-nathan-7.jpg
+# lukas-amanda-3.jpg
+# neha-raj-17.jpg
+# pam-david-1.jpg
+# morgan-julia-1.jpg
+# lola-denis-2.jpg
+# jingnan-nathan-3.jpg
+# tree-kiss.jpg | Newlyweds kissing under a huge old tree | Cyrielle & Ola
+# bus.jpg | Newlyweds on the top deck of a vintage bus | Cyrielle & Ola
+# ryan-niamh-16.jpg
+# lola-denis-13.jpg
 
 
 # ---------------- ELOPEMENTS ----------------

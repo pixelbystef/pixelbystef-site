@@ -25,6 +25,7 @@ EXTRA_CSS = r"""
 .reel figcaption{padding-top:14px;margin-top:0;color:var(--ink)}
 .reel figcaption b{display:block;font-family:var(--serif);font-weight:400;font-size:clamp(24px,2.6vw,34px);line-height:1.1}
 .reel figcaption i{display:block;color:var(--muted);margin-top:6px;font-size:15px}
+.wfilms{padding-block:clamp(64px,9vw,120px)}
 .reels-more{margin-top:clamp(28px,4vw,48px);text-align:center}
 @media (max-width:760px){.reels{grid-template-columns:1fr}}
 /* instagram: post cards with real comments */
@@ -251,6 +252,16 @@ def yt_id(url):
 def films():
     # [films] in photos.txt:  youtube link | couple names | line under the names
     return [(yt_id(fn), alt, cp) for fn, alt, cp in P('films')]
+
+def reels_html():
+    out = '<div class="reels">'
+    for vid, names, line in films():
+        n = html.escape(names)
+        out += (f'<figure class="reel"><button class="play" type="button" data-yt="{vid}" aria-label="Play the film: {n}">'
+                f'<img src="https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" onerror="this.onerror=null;this.src=&#39;https://i.ytimg.com/vi/{vid}/hqdefault.jpg&#39;" alt="Still from the wedding film of {n}" loading="lazy" width="1280" height="720">'
+                f'<span class="btn-p"></span></button><figcaption><b>{n}</b>' + (f'<i>{line}</i>' if line else '') + '</figcaption></figure>')
+    return out + '</div>'
+REEL_JS = "<script>document.querySelectorAll('.reel .play').forEach(function(b){b.addEventListener('click',function(){var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.yt+'?autoplay=1&rel=0';f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;b.replaceWith(f);});});</script>"
 
 IG_FILE = os.path.join(HERE, 'instagram.txt')
 def ig_posts():
@@ -496,6 +507,9 @@ def build():
   </div>
   <div class="pk-foot"><span>Shorter day? Half-day coverage is available, just ask.</span><span>{TRAVEL}</span></div>
 </div></section>'''
+    body += ('<section class="wfilms"><div class="wrap"><div class="sec-head"><h2>Wedding <em>films</em></h2>'
+             '<p>Press play. Every film is shot on the day by me, graded by hand.</p></div>' + reels_html() +
+             '<p class="reels-more"><a class="btn ghost" href="/films">All films</a></p></div></section>' + REEL_JS)
     body += steps([('We chat', 'Coffee in Edinburgh or London, or a video call. You tell me about you two and the day you have in mind.'),
                    ('We plan', 'Moodboard, timeline and locations, built around the best light. I send reminders so you don\'t have to.'),
                    ('You enjoy it', 'On the day you get on with celebrating. A sneak peek lands within 24 hours, the rest within 4 weeks.')])
@@ -575,14 +589,8 @@ def build():
   <section class="phero" style="padding-bottom:0"><div class="wrap" style="grid-template-columns:1fr">
     <div><p class="mono">Films</p><h1>Now <em>showing</em></h1><p class="lead">Cinema cameras, proper audio and a drone, cut into films you'll actually rewatch. Grab some popcorn.</p></div>
   </div></section>
-  <section class="wrap" style="padding-block:24px clamp(64px,9vw,120px)"><div class="reels">'''
-    for vid, names, line in films():
-        n = html.escape(names)
-        body += (f'<figure class="reel"><button class="play" type="button" data-yt="{vid}" aria-label="Play the film: {n}">'
-                 f'<img src="https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" onerror="this.onerror=null;this.src=&#39;https://i.ytimg.com/vi/{vid}/hqdefault.jpg&#39;" alt="Still from the wedding film of {n}" loading="lazy" width="1280" height="720">'
-                 f'<span class="btn-p"></span></button><figcaption><b>{n}</b>' + (f'<i>{line}</i>' if line else '') + '</figcaption></figure>')
-    body += '''</div><p class="reels-more"><a class="btn ghost" href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener">More films on YouTube &#8599;</a></p></section>
-<script>document.querySelectorAll('.reel .play').forEach(function(b){b.addEventListener('click',function(){var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.yt+'?autoplay=1&rel=0';f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;b.replaceWith(f);});});</script>'''
+  <section class="wrap" style="padding-block:24px clamp(64px,9vw,120px)">'''
+    body += reels_html() + '''<p class="reels-more"><a class="btn ghost" href="https://www.youtube.com/@pixelbystef" target="_blank" rel="noopener">More films on YouTube &#8599;</a></p></section>''' + REEL_JS
     body += cta('Want your own <em>premiere?</em>')
     page('films.html', 'Wedding films · pixelbystef', 'Cinematic wedding films shot on cinema cameras with pro audio and drone, by Stefan of pixelbystef.', body, '/films', 'reel-poster.jpg')
 
