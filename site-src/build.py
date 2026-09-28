@@ -6,7 +6,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'assets')
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, 'public')
-PREVIEW = True  # adds noindex until launch
+PREVIEW = False  # True adds noindex (hide from Google)
 
 def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
@@ -348,8 +348,13 @@ if(j&&j.ok){var w=document.createElement('div');w.className='sent';w.innerHTML='
 else{throw new Error((j&&j.error)||'fail')}}).catch(function(err){btn.disabled=false;btn.textContent='Send it';s.className='status err';s.textContent=(err&&err.message&&err.message!=='fail'&&err.message.length<140?err.message+' ':'')+'Something went wrong on my side. Please email me at pixelbystef@gmail.com and I\\u2019ll get back to you.';});});})();
 </script>'''
 
+SITEMAP = []
 def page(path, title, desc, body, active='', og='hero-cliff.jpg'):
     robots = '<meta name="robots" content="noindex">\n' if PREVIEW else ''
+    slug = '' if path == 'index.html' else path[:-5]
+    if path not in ('404.html', 'thanks.html'):
+        robots += f'<link rel="canonical" href="https://pixelbystef.com/{slug}">\n'
+        SITEMAP.append(f'https://pixelbystef.com/{slug}')
     doc = f'''<!doctype html>
 <html lang="en-GB">
 <head>
@@ -670,6 +675,10 @@ def build():
     page('thanks.html', 'Thank you · pixelbystef', 'Thanks for getting in touch.', body)
     body = '<section class="phero"><div class="wrap" style="grid-template-columns:1fr"><div><p class="mono">404</p><h1>This scene got <em>cut.</em></h1><p class="lead">The page you were looking for isn\'t here. Try the homepage instead.</p><div class="cta-row"><a class="btn" href="/">Back to the start</a></div></div></div></section>'
     page('404.html', 'Page not found · pixelbystef', 'Page not found.', body)
+
+    # ---------- robots.txt + sitemap.xml ----------
+    open(os.path.join(OUT, 'robots.txt'), 'w').write('User-agent: *\nDisallow: /g/\nDisallow: /g-admin/\n' + ('Disallow: /\n' if PREVIEW else '') + 'Sitemap: https://pixelbystef.com/sitemap.xml\n')
+    open(os.path.join(OUT, 'sitemap.xml'), 'w').write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + ''.join(f'  <url><loc>{u}</loc></url>\n' for u in SITEMAP) + '</urlset>\n')
 
     # ---------- copy only referenced assets ----------
     used = set()

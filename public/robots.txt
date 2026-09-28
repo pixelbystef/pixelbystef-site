@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /g/
+Disallow: /g-admin/
+Sitemap: https://pixelbystef.com/sitemap.xml
