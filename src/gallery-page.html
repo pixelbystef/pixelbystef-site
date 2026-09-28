@@ -99,8 +99,12 @@ main{padding-block:clamp(20px,3vw,36px) 80px}
 .set header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
 .set h3{font-size:clamp(28px,3vw,40px)}
 .set header .mono{color:var(--muted)}
-.grid{columns:3 280px;column-gap:12px}
-.tile{position:relative;break-inside:avoid;margin:0 0 12px;background:var(--paper-2);cursor:zoom-in;overflow:hidden}
+/* Justified rows: photos read left to right, row by row, never cropped. */
+.grid{--rowh:clamp(150px,24vw,340px);display:flex;flex-wrap:wrap;gap:12px}
+.grid::after{content:"";flex-grow:999999}
+.tile{position:relative;margin:0;background:var(--paper-2);cursor:zoom-in;overflow:hidden;flex-grow:var(--r);flex-basis:calc(var(--r) * var(--rowh));aspect-ratio:var(--r)}
+.tile img{height:100%;object-fit:cover}
+@media (max-width:640px){.grid{gap:6px}}
 .tile img{width:100%;transition:transform .5s ease}
 .tile:hover img{transform:scale(1.02)}
 .tile .ov{position:absolute;inset:auto 0 0 0;display:flex;justify-content:space-between;align-items:center;padding:10px;background:linear-gradient(0deg,rgba(29,26,25,.5),rgba(29,26,25,0));opacity:0;transition:opacity .2s ease}
@@ -275,7 +279,7 @@ if (G.films.length) {
 
 function tile(i){
   var p = P[i], f = favs[p.id];
-  return '<figure class="tile' + (f ? ' fav' : '') + '" data-i="' + i + '">' +
+  return '<figure class="tile' + (f ? ' fav' : '') + '" data-i="' + i + '" style="--r:' + (p.w / p.h).toFixed(4) + '">' +
     '<img src="' + BASE + '/t/' + encodeURIComponent(p.id) + '.jpg" width="' + p.w + '" height="' + p.h + '" loading="lazy" alt="Photo ' + (i+1) + '">' +
     '<figcaption class="ov"><span class="name">' + esc(p.id) + '</span><span class="acts">' +
     '<button class="round heart" type="button" data-act="fav" aria-pressed="' + !!f + '" aria-label="Favourite">' + HEART + '</button>' +
