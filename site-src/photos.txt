@@ -194,47 +194,54 @@ prop-kiss.jpg | Couple kissing, laughing, by the sea | Zavier & Shawna
 tube-train.jpg | Couple on a Tube platform as a train rushes past | -
 
 [couples.gallery]
+# short on purpose (3 rows): portrait = 1, landscape = 2, keep the total at 9.
 tondi-amara-5486.jpg | Couple looking up from a sweeping spiral staircase
-joshua-meagan-4912.jpg | Couple kissing under a brick archway with fairy lights
 nick-melissa-0231.jpg | Couple kissing beside the Daunt Books sign
-johan-kristina-6948.jpg | Couple smiling at each other in a red phone box
-welton-mindy-2686.jpg | Couple walking hand in hand into a gallery
 kit-4687.jpg | Couple holding hands as a Tube train rushes past | Kit
-brenda-eduard-0882.jpg | Groom lifting the bride in front of the Natural History Museum
-chloe-owen-9.jpg
+welton-mindy-2686.jpg | Couple walking hand in hand into a gallery
 ryan-eleni-6896.jpg | Couple embracing under wisteria
 akash-8970.jpg | Couple laughing inside a red phone box | Akash
-joe-juliet-1363.jpg | Couple on a spiral staircase in a Victorian glasshouse
-eric-melody-1063.jpg | Couple kissing while blurred crowds walk past
-hugo-jessica-7799.jpg | Couple laughing on a red-brick street
-kenny-3863.jpg | Couple laughing on Westminster Bridge | Kenny
-grant-5677.jpg | Couple leaning against a big plane tree | Grant
-claudio-julia-8113.jpg | Couple walking at the Old Royal Naval College, Greenwich
-dickson-michelle-0058.jpg | Couple nose to nose inside a red phone box
-towerbridge-kiss.jpg | Couple kissing on Tower Bridge as a red bus passes | -
-ian-shin-8367.jpg | Couple sharing a kiss on a stone ledge, framed by a doorway
-joshua-meagan-4949.jpg | Couple holding hands in a golden stone doorway
-junhao-nicole-1097.jpg | Couple walking hand in hand through a gallery, black and white
-laura-matt-6713.jpg | Couple laughing by Westminster Bridge
-jojo-peter-9792.jpg | Couple standing in front of an ivy-covered wall
-nicole-rilan-e7138.jpg | Couple dancing in silhouette against a sunset sky
-claire-lucas-1090.jpg | Couple framed by a stone archway overlooking a garden
-weisheng-3069.jpg | Couple reflected in a round mirror | Weisheng
-lizz-jack-074.jpg | Couple hugging by a wooden fence on a misty hillside | Lizz & Jack
-jae-niki-7733.jpg | Couple silhouetted in an alley facing York Minster
-nick-melissa-16.jpg
-chloe-owen-16.jpg
-laura-matt-6854.jpg | Couple on a park bench behind yellow daffodils
-welton-mindy-5.jpg
-jimmy-verga-2.jpg
-ian-shin-13.jpg
-joe-juliet-5.jpg
-claire-lucas-1098.jpg | Couple leaning on a sunny wall, laughing
-brenda-eduard-1077.jpg | Couple making a heart with their hands against the sky
-jojo-peter-9928.jpg | Couple sitting on a hilltop under a big blue sky
-byram-alyssa-e8247.jpg | Couple sitting on red stairs outside a stone house
-weisheng-2892.jpg | Couple on a bench inside a ruined church | Weisheng
-york-icecream.jpg | Woman offering an ice cream cone with a grin | Jae & Niki
+brenda-eduard-0882.jpg | Groom lifting the bride in front of the Natural History Museum
+# spares - remove the # to use one (and take another out):
+# joshua-meagan-4912.jpg | Couple kissing under a brick archway with fairy lights
+# johan-kristina-6948.jpg | Couple smiling at each other in a red phone box
+# chloe-owen-9.jpg
+# joe-juliet-1363.jpg | Couple on a spiral staircase in a Victorian glasshouse
+# eric-melody-1063.jpg | Couple kissing while blurred crowds walk past
+# hugo-jessica-7799.jpg | Couple laughing on a red-brick street
+# kenny-3863.jpg | Couple laughing on Westminster Bridge | Kenny
+# grant-5677.jpg | Couple leaning against a big plane tree | Grant
+# claudio-julia-8113.jpg | Couple walking at the Old Royal Naval College, Greenwich
+# dickson-michelle-0058.jpg | Couple nose to nose inside a red phone box
+# towerbridge-kiss.jpg | Couple kissing on Tower Bridge as a red bus passes | -
+# ian-shin-8367.jpg | Couple sharing a kiss on a stone ledge, framed by a doorway
+# joshua-meagan-4949.jpg | Couple holding hands in a golden stone doorway
+# junhao-nicole-1097.jpg | Couple walking hand in hand through a gallery, black and white
+# laura-matt-6713.jpg | Couple laughing by Westminster Bridge
+# jojo-peter-9792.jpg | Couple standing in front of an ivy-covered wall
+# nicole-rilan-e7138.jpg | Couple dancing in silhouette against a sunset sky
+# claire-lucas-1090.jpg | Couple framed by a stone archway overlooking a garden
+# weisheng-3069.jpg | Couple reflected in a round mirror | Weisheng
+# lizz-jack-074.jpg | Couple hugging by a wooden fence on a misty hillside | Lizz & Jack
+# jae-niki-7733.jpg | Couple silhouetted in an alley facing York Minster
+# nick-melissa-16.jpg
+# chloe-owen-16.jpg
+# laura-matt-6854.jpg | Couple on a park bench behind yellow daffodils
+# welton-mindy-5.jpg
+# jimmy-verga-2.jpg
+# ian-shin-13.jpg
+# joe-juliet-5.jpg
+# claire-lucas-1098.jpg | Couple leaning on a sunny wall, laughing
+# brenda-eduard-1077.jpg | Couple making a heart with their hands against the sky
+# jojo-peter-9928.jpg | Couple sitting on a hilltop under a big blue sky
+# byram-alyssa-e8247.jpg | Couple sitting on red stairs outside a stone house
+# weisheng-2892.jpg | Couple on a bench inside a ruined church | Weisheng
+# york-icecream.jpg | Woman offering an ice cream cone with a grin | Jae & Niki
+
+[couples.films]
+# the film cards on the Pre-wedding page.  format:  YouTube link | title | line under it
+https://youtu.be/CmVtMepRHzc | A sunny day at Primrose Hill | Pre-wedding film · 1:47
+https://youtu.be/TU2_6s_62qI | The galleries, the streets, and everything in between | Pre-wedding film · 0:58
 
 
 # ---------------- ABOUT ----------------

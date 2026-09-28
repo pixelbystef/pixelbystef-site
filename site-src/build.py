@@ -162,7 +162,7 @@ form.enquiry .status.err{color:#a3372c}
 .gal figure:hover img{transform:scale(1.03)}
 .gal figcaption{position:absolute;left:10px;bottom:10px;margin:0;color:#fff;font-size:10px;opacity:0;transition:opacity .3s;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .gal figure:hover figcaption{opacity:1}
-@media (max-width:700px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:clamp(200px,62vw,340px)}}
+@media (max-width:700px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:clamp(200px,62vw,340px)}.gal figure.solo-m{grid-column:span 2}}
 .stories{padding-bottom:0}
 /* ---------- symmetric page hero ---------- */
 .phero .wrap{grid-template-columns:1fr 1fr;align-items:stretch}
@@ -249,16 +249,16 @@ def yt_id(url):
     m = _re.search(r'(?:v=|youtu\.be/|embed/)([\w-]{11})', url)
     return m.group(1) if m else url.strip()
 
-def films():
-    # [films] in photos.txt:  youtube link | couple names | line under the names
-    return [(yt_id(fn), alt, cp) for fn, alt, cp in P('films')]
+def films(section='films'):
+    # [films] / [couples.films] in photos.txt:  youtube link | title | line under the title
+    return [(yt_id(fn), alt, cp) for fn, alt, cp in P(section)]
 
-def reels_html():
+def reels_html(section='films'):
     out = '<div class="reels">'
-    for vid, names, line in films():
+    for vid, names, line in films(section):
         n = html.escape(names)
         out += (f'<figure class="reel"><button class="play" type="button" data-yt="{vid}" aria-label="Play the film: {n}">'
-                f'<img src="https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" onerror="this.onerror=null;this.src=&#39;https://i.ytimg.com/vi/{vid}/hqdefault.jpg&#39;" alt="Still from the wedding film of {n}" loading="lazy" width="1280" height="720">'
+                f'<img src="https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" onerror="this.onerror=null;this.src=&#39;https://i.ytimg.com/vi/{vid}/hqdefault.jpg&#39;" alt="Still from the film: {n}" loading="lazy" width="1280" height="720">'
                 f'<span class="btn-p"></span></button><figcaption><b>{n}</b>' + (f'<i>{line}</i>' if line else '') + '</figcaption></figure>')
     return out + '</div>'
 REEL_JS = "<script>document.querySelectorAll('.reel .play').forEach(function(b){b.addEventListener('click',function(){var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.yt+'?autoplay=1&rel=0';f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;b.replaceWith(f);});});</script>"
@@ -389,10 +389,16 @@ def cta(h='Got a date? Let\'s make it a <em>good one.</em>', p="Tell me about yo
     return f'<section class="ctaband"><div class="wrap"><h2>{h}</h2><p>{p}</p><a class="btn light" href="/contact">Let\'s chat</a></div></section>'
 
 def gallery(items):
+    # landscapes span 2 columns. On phones (2 columns) portraits pair up, so with an odd
+    # number of portraits the last one spans the full width instead of leaving a gap.
+    sizes = [Image.open(os.path.join(ASSETS, fn)).size for fn, alt, cp in items]
+    wide = [w > h * 1.15 for w, h in sizes]
+    ports = [i for i, x in enumerate(wide) if not x]
+    solo = ports[-1] if len(ports) % 2 else -1
     out = []
-    for fn, alt, cp in items:
-        w, h = Image.open(os.path.join(ASSETS, fn)).size
-        cls = ' class="wide"' if w > h * 1.15 else ''
+    for i, (fn, alt, cp) in enumerate(items):
+        cls = 'wide' if wide[i] else ('solo-m' if i == solo else '')
+        cls = f' class="{cls}"' if cls else ''
         c = f'<figcaption class="mono">{cp}</figcaption>' if cp else ''
         out.append(f'<figure{cls}>{img(fn, alt)}{c}</figure>')
     return '<section class="pgal wrap"><div class="gal">' + ''.join(out) + '</div></section>'
@@ -573,6 +579,9 @@ def build():
   </div>
   <div class="pk-foot"><span>{TRAVEL}</span></div>
 </div></section>'''
+    body += ('<section class="wfilms"><div class="wrap"><div class="sec-head"><h2>Pre-wedding <em>films</em></h2>'
+             '<p>Every session comes with a short film like these.</p></div>' + reels_html('couples.films') +
+             '<p class="reels-more"><a class="btn ghost" href="/films">All films</a></p></div></section>' + REEL_JS)
     body += steps([('We chat', 'Tell me what you love: city, nature, your favourite café, a place that means something.'),
                    ('We plan', 'Moodboard, outfits, locations and timing for the best light.'),
                    ('We play', 'Three hours of wandering, laughing and a few daft prompts. Sneak peek within 24 hours.')])
