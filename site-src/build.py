@@ -124,6 +124,47 @@ form.enquiry .status.err{color:#a3372c}
 .about-pair img:last-child{margin-top:18%}
 """
 
+
+ALT = {
+ 'ryan-niamh-2':'Bride walking down the church aisle with her father','ryan-niamh-5':'Groom grinning as he places the ring on the bride',
+ 'ryan-niamh-9':'Groom and groomsmen in kilts cheering with the bride','ryan-niamh-13':'Couple seen from above on a spiral staircase',
+ 'ryan-niamh-16':'Father of the bride giving a speech','ryan-niamh-21':'Bride laughing on the dance floor',
+ 'ryan-niamh-22':'First dance under blue lights','randy-sydney-1':'Couple on grand stone steps in Edinburgh Old Town',
+ 'randy-sydney-10':'Couple kissing under trees','randy-sydney-13':'Couple in front of a yellow Edinburgh building',
+ 'randy-sydney-14':'Newlyweds walking hand in hand down a cobbled lane','morgan-julia-1':'Bride with her bridesmaids in pink',
+ 'morgan-julia-2':'Groom in a red suit embracing the bride by a stained-glass window','morgan-julia-6':'Couple in window light, cheek to cheek',
+ 'shana-daniel-1':'Newlyweds walking out past wooden panels','shana-daniel-3':'Couple seen from above on a staircase',
+ 'shana-daniel-13':'Bride hugging a guest','shana-daniel-18':'Wedding ceremony under a prayer shawl',
+ 'neha-raj-2':'Couple kissing under a leafy porch','neha-raj-12':'Couple silhouetted by tall windows',
+ 'neha-raj-17':'Couple silhouetted at sunset','neha-raj-18':'Couple on a terrace at sunset',
+ 'lukas-amanda-2':'Couple at the altar framed by flowers','lukas-amanda-3':'Newlyweds under a stone archway in the sun',
+ 'lukas-amanda-5':'Groom getting ready by a bright window','lola-denis-2':'Bride and groom sitting on a wooden staircase',
+ 'lola-denis-13':'Newlyweds on the steps of a grand doorway','lola-denis-18':'Looking up a spiral staircase at the couple',
+ 'pam-david-1':'Couple framed by white flowers','jingnan-nathan-3':'Bride and groom looking up at the sky',
+ 'jingnan-nathan-7':'Groom lifting the bride, seen from above','nicole-rilan-2':'Tiny couple on a Highland hilltop',
+ 'nicole-rilan-5':'Vows by a misty loch','nicole-rilan-6':'Bagpiper playing between the couple','nicole-rilan-8':'Groom dipping the bride for a kiss',
+ 'nicole-rilan-11':'Bride and groom on a clifftop above a loch','nicole-rilan-14':'Couple celebrating by a vintage bus',
+ 'nicole-rilan-15':'Bride standing at the edge of a loch','nicole-rilan-19':'Couple dancing, silhouetted in a doorway',
+ 'maxwell-kat-1':'Couple smiling on Calton Hill','maxwell-kat-5':'Bride laughing during the vows','maxwell-kat-9':'Exchanging rings on Calton Hill',
+ 'maxwell-kat-18':'Groom standing between the columns of the National Monument','hugo-jessica-3':'Man proposing on one knee by a lake',
+ 'hugo-jessica-8':'Couple twirling in the park after the proposal','joe-kristina-5':'Woman beaming, showing her new ring',
+ 'joe-kristina-6':'Proposal under a garden pergola','hadar-samiya-2':'Woman laughing in disbelief after the proposal',
+ 'hadar-samiya-10':'Proposal on Calton Hill overlooking Edinburgh','brandon-chloe-11':'Proposal under glowing trees at night',
+ 'brandon-chloe-17':'Couple by a lit-up carousel','eric-melody-1':'Proposal by the lake in St James\'s Park',
+ 'eric-melody-12':'Hand showing an engagement ring against the sky','ryan-eleni-1':'Proposal beside a fountain',
+ 'justin-christina-1':'Proposal on an Edinburgh street with the castle behind','chloe-owen-9':'Couple seen through the window of a red London bus',
+ 'chloe-owen-16':'Couple under cherry blossom','chloe-owen-20':'Couple running down a London street in wedding outfits',
+ 'jimmy-verga-2':'Couple dancing in silhouette on wet cobbles','welton-mindy-1':'Couple under red lanterns in Chinatown',
+ 'welton-mindy-5':'Couple in a tunnel of lights','joe-juliet-5':'Couple on a white spiral staircase in a glasshouse',
+ 'nick-melissa-11':'Woman peeking out of a red phone box','nick-melissa-16':'Man lifting his partner, both laughing',
+ 'johan-kristina-13':'Couple kissing inside a red phone box','hunter-laura-16':'Couple on a Tube platform',
+ 'ian-shin-13':'Couple on colourful Victoria Street','nevaeh-leslie-11':'Couple on the top deck of a red bus','sid-sruti-3':'Couple in front of a big wheel',
+}
+def cap(k):
+    a,b=k.split('-')[:2]; return f'{a.title()} &amp; {b.title()}'
+def g(*keys):
+    return [(k+'.jpg', ALT[k], cap(k)) for k in keys]
+
 # ---------------------------------------------------------------- helpers
 def img(src, alt, cls='', lazy=True):
     p = os.path.join(ASSETS, src)
@@ -254,24 +295,34 @@ def build():
     m = m.replace('<a class="btn ghost" href="/contact">Get to know me</a>', '<a class="btn ghost" href="/about">Get to know me</a>')
     m = m.replace('id="faq"', 'id="why"')
     m = m.replace('<a class="btn ghost" href="#faq">', '<a class="btn ghost" href="/faq">')
+
+    # ---- refreshed photos on home
+    def swap(m, old_src, new_key):
+        return re.sub(r'<img src="/assets/'+re.escape(old_src)+r'"[^>]*>', img(new_key+'.jpg', ALT[new_key]), m)
+    m = swap(m, 'tree-kiss.jpg', 'morgan-julia-2')
+    m = swap(m, 'elope-gorse.jpg', 'nicole-rilan-8')
+    m = swap(m, 'york-piggy.jpg', 'chloe-owen-9')
+    # masonry: replace some tiles
+    for old, new in [('minster.jpg','nicole-rilan-11'),('stair-overhead.jpg','ryan-niamh-13'),('piper.jpg','welton-mindy-5'),('arch-twirl.jpg','jimmy-verga-2'),('icecream-van.jpg','neha-raj-17'),('scott-mon.jpg','joe-kristina-5'),('bw-forehead.jpg','randy-sydney-14')]:
+        m = re.sub(r'<figure><img src="/assets/'+re.escape(old)+r'"[^>]*><figcaption class="mono">[^<]*</figcaption></figure>',
+                   '<figure>'+img(new+'.jpg', ALT[new])+f'<figcaption class="mono">{cap(new)}</figcaption></figure>', m)
+    # wedding-day strip
+    i = m.index('<div class="row">'); j = m.index('</div>', m.index('</figure>', m.rindex('<figure>', i, m.index('</section>', i)))) 
+    scenes = [('lukas-amanda-5','The quiet morning'),('morgan-julia-1','The squad'),('ryan-niamh-2','The walk'),('ryan-niamh-5','The "I do"'),
+              ('ryan-niamh-9','Everyone you love'),('randy-sydney-14','Just you two'),('ryan-niamh-16','The speeches'),('ryan-niamh-21','The dance floor'),('neha-raj-17','Last light')]
+    row = '<div class="row">' + ''.join(f'<figure>{img(k+".jpg", ALT[k])}<figcaption><span class="mono">Sc. {n}</span><b>{t}</b></figcaption></figure>' for n,(k,t) in enumerate(scenes,1))
+    m = m[:i] + row + m[j:]
+    # real testimonial
+    m = re.sub(r'<blockquote>.*?</blockquote>\s*<cite class="mono">.*?</cite>',
+               '<blockquote>“Stefan really has given us the best memories and we are so grateful for him. The most supportive, patient, and lovely <em>photographer.</em>”</blockquote>\n        <cite class="mono">Chris &amp; Nia</cite>', m, flags=re.S)
     page('index.html', 'pixelbystef · Cinematic wedding & couples photographer, Edinburgh & London',
          "Cinematic wedding and couples photographer and filmmaker based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
 
     # ---------- WEDDINGS ----------
     body = phero('Weddings · photo &amp; film', 'The whole day. The full <em>film.</em>',
                  'From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.',
-                 'noor-ceremony.jpg', 'Couple at their ceremony under a floral arch', wide=True)
-    body += gallery([
-        ('tree-kiss.jpg', 'Newlyweds kissing under a huge old tree', 'Cyrielle &amp; Ola'),
-        ('hanger.jpg', 'Personalised bride hanger', 'Noor &amp; Alex'),
-        ('bus.jpg', 'Newlyweds on the top deck of a vintage bus', 'Cyrielle &amp; Ola'),
-        ('noor-hug.jpg', 'Bride hugging a guest', 'Noor &amp; Alex'),
-        ('cyr-guests.jpg', 'Guests laughing with drinks in hand', 'Cyrielle &amp; Ola'),
-        ('stairs-group.jpg', 'Big group photo on a grand red staircase', 'Cyrielle &amp; Ola'),
-        ('noor-girls.jpg', 'Bride cuddling a little girl on a sofa', 'Noor &amp; Alex'),
-        ('cyr-bus2.jpg', 'Newlyweds under trees', 'Cyrielle &amp; Ola'),
-        ('noor-arch.jpg', 'Family holding a cloth over the couple during the ceremony', 'Noor &amp; Alex'),
-    ])
+                 'randy-sydney-1.jpg', 'Newlyweds on grand stone steps in Edinburgh Old Town', wide=True)
+    body += gallery(g('ryan-niamh-9','morgan-julia-2','ryan-niamh-13','lukas-amanda-2','randy-sydney-10','shana-daniel-3','ryan-niamh-22','neha-raj-12','lola-denis-18','morgan-julia-6','ryan-niamh-21','shana-daniel-13','randy-sydney-14','jingnan-nathan-7','lukas-amanda-3','neha-raj-17','pam-david-1','ryan-niamh-5','morgan-julia-1','shana-daniel-18','lola-denis-2'))
     body += feel('Real moments, a bit of <em>direction</em>, lots of colour.', [
         "Most of the day I blend in and let things happen: the hugs, the happy tears, your uncle's speech that runs ten minutes too long. When we need a shot, I jump in, keep it quick, and send you back to your drink.",
         "Everything is shot with cinema cameras and graded by hand, so your photos and your film look like they belong to the same movie.",
@@ -288,20 +339,13 @@ def build():
                    ('We plan', 'Moodboard, timeline and locations, built around the best light. I send reminders so you don\'t have to.'),
                    ('You enjoy it', 'On the day you get on with celebrating. A sneak peek lands within 24 hours, the rest within 4 weeks.')])
     body += cta()
-    page('weddings.html', 'Wedding photography & films · pixelbystef', 'Cinematic wedding photography and films in Edinburgh, London, the UK and Europe. Photo from £1,400, film from £1,600.', body, '/weddings', 'noor-ceremony.jpg')
+    page('weddings.html', 'Wedding photography & films · pixelbystef', 'Cinematic wedding photography and films in Edinburgh, London, the UK and Europe. Photo from £1,400, film from £1,600.', body, '/weddings', 'randy-sydney-1.jpg')
 
     # ---------- ELOPEMENTS ----------
     body = phero('Elopements', 'Just you two. And a very big <em>view.</em>',
-                 "Skip the seating plan. A Highland glen, a clifftop, a city registry office followed by pints. I'll help you pick the spot, time it for the light, and make it feel like the opening scene of a film.",
-                 'elope-gorse.jpg', "Bride standing among yellow gorse on Arthur's Seat", wide=True)
-    body += gallery([
-        ('elope-arch.jpg', "Couple kissing inside a ruined stone arch on Arthur's Seat", 'Byram &amp; Alyssa'),
-        ('elope-read.jpg', 'Bride smiling while her partner reads his vows', 'Byram &amp; Alyssa'),
-        ('piper.jpg', "Couple with a bagpiper on Arthur's Seat", 'Byram &amp; Alyssa'),
-        ('elope-stairs.jpg', 'Bride walking down steps in an Edinburgh close', 'Byram &amp; Alyssa'),
-        ('scott-mon.jpg', 'Couple on the steps of the Scott Monument', 'Byram &amp; Alyssa'),
-        ('elope-beach.jpg', 'Couple running along Portobello beach', 'Byram &amp; Alyssa'),
-    ])
+                 "Skip the seating plan. A Highland loch, Calton Hill at sunrise, a city registry office followed by pints. I'll help you pick the spot, time it for the light, and make it feel like the opening scene of a film.",
+                 'nicole-rilan-2.jpg', 'Tiny couple on a Highland hilltop', wide=True)
+    body += gallery(g('nicole-rilan-5','nicole-rilan-8','nicole-rilan-6','maxwell-kat-5','nicole-rilan-14','nicole-rilan-11','maxwell-kat-9','nicole-rilan-15','nicole-rilan-19','maxwell-kat-18') + [('elope-arch.jpg', "Couple kissing inside a ruined stone arch on Arthur's Seat", 'Byram &amp; Alyssa'), ('piper.jpg', "Couple with a bagpiper on Arthur's Seat", 'Byram &amp; Alyssa')])
     body += feel('Small day. Big <em>feelings.</em>', [
         "Elopements are my favourite kind of adventure. No schedule to keep, no one to entertain, just the two of you and whatever the Scottish weather decides to do.",
         "I know the good spots in and around Edinburgh (and the midge-free ones), and I'm happy to travel for the right view. We start with an engagement shoot so you're comfy with me long before the day itself."])
@@ -316,20 +360,13 @@ def build():
                    ('We plan', 'Location scouting, timings for the light, the paperwork people, and a backup plan for rain.'),
                    ('We go', 'Engagement shoot first, then the big day. A sneak peek arrives within 24 hours.')])
     body += cta('Just the two of you? Let\'s make it <em>epic.</em>')
-    page('elopements.html', 'Elopement photography in Scotland & beyond · pixelbystef', 'Cinematic elopement photography in Edinburgh, the Highlands and beyond. Engagement shoot plus 4-hour elopement coverage for £1,400.', body, '/elopements', 'elope-gorse.jpg')
+    page('elopements.html', 'Elopement photography in Scotland & beyond · pixelbystef', 'Cinematic elopement photography in Edinburgh, the Highlands and beyond. Engagement shoot plus 4-hour elopement coverage for £1,400.', body, '/elopements', 'nicole-rilan-8.jpg')
 
     # ---------- PROPOSALS ----------
     body = phero('Proposals', 'I hide. You ask. We get the <em>reaction.</em>',
                  "Proposals are basically a heist with a happy ending. We plan it together, I play the tourist with a camera, and you get the moment they realise, from start to “YES”.",
                  'hero-cliff.jpg', 'A tiny couple on the edge of the white Seven Sisters cliffs', wide=True)
-    body += gallery([
-        ('proposal-ring.jpg', 'Man on one knee holding out a ring', 'Zavier &amp; Shawna'),
-        ('prop-hand.jpg', 'Close-up of a hand with a new engagement ring', 'Zavier &amp; Shawna'),
-        ('twirl.jpg', 'Couple spinning on a clifftop', 'Zavier &amp; Shawna'),
-        ('prop-run.jpg', 'Couple running across a clifftop meadow', 'Zavier &amp; Shawna'),
-        ('prop-kiss.jpg', 'Couple kissing, laughing, by the sea', 'Zavier &amp; Shawna'),
-        ('cliff-laugh.jpg', 'Couple laughing with ice creams by the sea', 'Zavier &amp; Shawna'),
-    ])
+    body += gallery([('proposal-ring.jpg', 'Man on one knee holding out a ring', 'Zavier &amp; Shawna')] + g('joe-kristina-5','hugo-jessica-3','hadar-samiya-2','brandon-chloe-11','eric-melody-1','hugo-jessica-8','justin-christina-1','eric-melody-12','brandon-chloe-17','ryan-eleni-1','hadar-samiya-10') + [('twirl.jpg', 'Couple spinning on a clifftop', 'Zavier &amp; Shawna')])
     body += feel('The secret <em>mission.</em>', [
         "We'll work out where you'll stand, what the signal is, and how to get them there without suspicion. I'll scout the spot beforehand so I know exactly where the light falls.",
         "After the big moment (and the happy crying), we stay for a relaxed couple shoot nearby, so you get the reaction and the celebration."])
@@ -350,17 +387,7 @@ def build():
     body = phero('Pre-wedding &amp; couples', 'Main-character energy, on <em>demand.</em>',
                  "Pre-wedding shoots, engagements, anniversaries, or “we just want nice photos of us”. We wander somewhere beautiful, I give you daft prompts, you laugh, I shoot, and I film a short movie of it too.",
                  'tube-train.jpg', 'Couple on a Tube platform as a train rushes past', wide=True)
-    body += gallery([
-        ('phonebox.jpg', 'Couple in wedding outfits inside a red phone box', 'Dickson &amp; Michelle'),
-        ('blossom-lift.jpg', 'Man lifting his partner under cherry blossom', 'Laura &amp; Matt'),
-        ('royal-mile.jpg', 'Couple pointing at a Royal Mile street sign', 'Jojo &amp; Peter'),
-        ('pre-bench.jpg', 'Couple laughing on a park bench in wedding outfits', 'Dickson &amp; Michelle'),
-        ('york-icecream.jpg', 'Woman offering an ice cream cone', 'Jae &amp; Niki'),
-        ('va-run.jpg', 'Couple running across a museum lawn', 'Claire &amp; Lucas'),
-        ('pre-bigben.jpg', 'Couple walking across Westminster Bridge', 'Dickson &amp; Michelle'),
-        ('minster.jpg', 'Couple silhouetted facing York Minster', 'Jae &amp; Niki'),
-        ('va-stairs.jpg', 'Couple walking down museum stairs hand in hand', 'Claire &amp; Lucas'),
-    ])
+    body += gallery(g('chloe-owen-9','chloe-owen-16','jimmy-verga-2','welton-mindy-5','nick-melissa-16','ian-shin-13','joe-juliet-5','hunter-laura-16','chloe-owen-20','johan-kristina-13','welton-mindy-1','sid-sruti-3') + [('phonebox.jpg', 'Couple in wedding outfits inside a red phone box', 'Dickson &amp; Michelle'), ('blossom-lift.jpg', 'Man lifting his partner under cherry blossom', 'Laura &amp; Matt'), ('royal-mile.jpg', 'Couple pointing at a Royal Mile street sign', 'Jojo &amp; Peter')])
     body += feel('An excuse to be a bit <em>ridiculous.</em>', [
         "Most couples tell me they're awkward in front of the camera. None of them are by the end. I'll give you easy, slightly silly prompts, and you'll forget I'm there.",
         "Getting married soon? A pre-wedding shoot is also the best way to get comfy with me before the big day, and you get a short film to show everyone at the reception."])
