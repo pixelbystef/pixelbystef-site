@@ -924,7 +924,20 @@ export async function handleStudio(req, env) {
   if (p === "/studio/login" && req.method === "POST") {
     const form = await req.formData().catch(() => null);
     const given = String(form?.get("key") || "");
-    if (!given || !env.GALLERY_ADMIN_HASH || !safeEq(await sha256(given), env.GALLERY_ADMIN_HASH)) return loginPage("That key isn't right.");
+    // Too many wrong guesses from one address: lock it out for 15 minutes (this protects short, easy keys).
+    const lockKey = `studio/_login/${await sha256(ipOf(req))}`;
+    const lock = await env.GALLERIES.get(lockKey).then((o) => (o ? o.json() : { n: 0, until: 0 })).catch(() => ({ n: 0, until: 0 }));
+    if (lock.until > Date.now()) return loginPage(`Too many attempts. Try again in ${Math.ceil((lock.until - Date.now()) / 60000)} minutes.`);
+    // STUDIO_KEY_HASH (a Cloudflare secret, SHA-256 of the studio key) is the studio's own key; the gallery admin key also works.
+    const hashes = [env.STUDIO_KEY_HASH, env.GALLERY_ADMIN_HASH].filter(Boolean);
+    const gotHash = given ? await sha256(given) : "";
+    if (!gotHash || !hashes.some((h) => safeEq(gotHash, h))) {
+      lock.n += 1;
+      if (lock.n >= 5) { lock.until = Date.now() + 15 * 60000; lock.n = 0; }
+      await env.GALLERIES.put(lockKey, JSON.stringify(lock)).catch(() => {});
+      return loginPage("That key isn't right.");
+    }
+    if (lock.n) await env.GALLERIES.delete(lockKey).catch(() => {});
     const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 14;
     return new Response(null, { status: 303, headers: { Location: "/studio", "Set-Cookie": `pbs_studio=${exp}.${await hmac(env, `studio|${exp}`)}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=Strict`, "Cache-Control": "no-store" } });
   }
