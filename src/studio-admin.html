@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Studio · pixelbystef</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{color-scheme:light;--paper:#fbf9f6;--paper-2:#f1ece6;--ink:#1d1a19;--muted:#6f6863;--line:rgba(29,26,25,.14);--rose:#8c5a63;--rose-soft:#e9dcdc;--serif:"Instrument Serif",Georgia,serif;--sans:"Hanken Grotesk","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--rose)}
+nav{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:5}
+nav .logo{font:28px/1 var(--serif);text-decoration:none;color:var(--ink);margin-right:14px}nav .logo em{color:var(--rose)}
+nav a.tab{padding:6px 14px;border-radius:99px;text-decoration:none;color:var(--ink)}nav a.tab.on{background:var(--ink);color:var(--paper)}nav .sp{flex:1}
+main{max-width:980px;margin:0 auto;padding:28px 20px 80px}
+h1{font:400 40px/1.1 var(--serif);margin:0 0 6px}h1 em{color:var(--rose)}h2{font:400 26px/1.2 var(--serif);margin:34px 0 10px}
+.mono{font:11.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}.muted{color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 10px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row.sb{justify-content:space-between}.grow{flex:1 1 200px}
+label{display:block;font:11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:100px;resize:vertical}textarea.big{min-height:440px;font:13.5px/1.55 var(--mono)}
+input[type=checkbox]{width:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:0 16px}
+button,.btn{font:500 14px var(--sans);padding:9px 18px;border-radius:99px;border:0;background:var(--ink);color:var(--paper);cursor:pointer;text-decoration:none;display:inline-block}
+button:hover,.btn:hover{background:var(--rose)}button.ghost,.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}button.ghost:hover{background:var(--paper-2)}
+button.danger{background:transparent;color:#9b3b3b;border:1px solid #e6c4c4}button.sm{padding:4px 12px;font-size:13px}
+.pill{display:inline-block;font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 10px;border-radius:99px;background:var(--paper-2);color:var(--muted)}.pill.ok{background:#dfeadf;color:#3c6b3c}.pill.bad{background:#f3dcdc;color:#9b3b3b}.pill.warn{background:var(--rose-soft);color:var(--rose)}
+table{width:100%;border-collapse:collapse}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:400}.r{text-align:right}
+td input{padding:6px 8px}.item{cursor:pointer}.item:hover{border-color:var(--rose)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10;max-width:90vw}#toast.on{opacity:1}#toast.err{background:#9b3b3b}
+code{background:var(--paper-2);padding:1px 6px;border-radius:5px;font-size:13px}.link{font:12.5px var(--mono);word-break:break-all;background:var(--paper-2);padding:8px 12px;border-radius:10px}
+</style>
+</head>
+<body>
+<nav id="nav"></nav>
+<main id="app"><p class="muted">Loading…</p></main>
+<div id="toast"></div>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let S = null;
+const today = () => new Date().toISOString().slice(0, 10);
+const nice = (d) => (d ? new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
+const cur = () => S.settings.currency;
+const fmt = (n) => cur() + (Number(n) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const client = (id) => S.clients.find((c) => c.id === id);
+const project = (id) => S.projects.find((p) => p.id === id);
+const pill = (s) => `<span class="pill ${{ paid: "ok", signed: "ok", booked: "ok", delivered: "ok", completed: "ok", overdue: "bad", void: "bad", lost: "bad" }[s] || (s === "draft" ? "" : "warn")}">${esc(s)}</span>`;
+
+function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "on" + (err ? " err" : ""); clearTimeout(toast.t); toast.t = setTimeout(() => (t.className = ""), err ? 6000 : 2500); }
+async function api(path, method = "GET", body) {
+  const r = await fetch("/studio/api/" + path, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (r.status === 401) { location.reload(); throw new Error("Signed out"); }
+  const j = await r.json().catch(() => ({ error: "Bad response" }));
+  if (!r.ok || j.error) { toast(j.error || "Something went wrong", true); throw new Error(j.error); }
+  return j;
+}
+async function refresh() { S = await api("all"); }
+async function copy(text) { try { await navigator.clipboard.writeText(text); toast("Link copied"); } catch { prompt("Copy this link:", text); } }
+const val = (id) => $("#" + id).value;
+const set = (o, ids) => { ids.forEach((k) => (o[k] = val("f_" + k))); return o; };
+const field = (k, label, v = "", type = "text", extra = "") => `<div><label for="f_${k}">${label}</label><input id="f_${k}" type="${type}" value="${esc(v)}" ${extra}></div>`;
+const area = (k, label, v = "", cls = "") => `<div><label for="f_${k}">${label}</label><textarea id="f_${k}" class="${cls}">${esc(v)}</textarea></div>`;
+const select = (k, label, opts, v) => `<div><label for="f_${k}">${label}</label><select id="f_${k}">${opts.map(([val, txt]) => `<option value="${esc(val)}" ${val === v ? "selected" : ""}>${esc(txt)}</option>`).join("")}</select></div>`;
+
+// ---------- routing ----------
+const routes = [];
+const route = (re, fn) => routes.push([re, fn]);
+async function go() {
+  const hash = location.hash.slice(1) || "/";
+  const nav = $("#nav");
+  const sect = hash.split("/")[1] || "";
+  nav.innerHTML = `<a class="logo" href="#/">pixelby<em>stef</em></a>` +
+    [["", "Clients"], ["contracts", "Contracts"], ["invoices", "Invoices"], ["templates", "Templates"], ["settings", "Settings"]]
+      .map(([k, t]) => `<a class="tab ${sect === k || (k === "" && sect === "client") ? "on" : ""}" href="#/${k}">${t}</a>`).join("") +
+    `<span class="sp"></span><a class="tab" href="/studio/logout">Sign out</a>`;
+  if (!S) await refresh();
+  for (const [re, fn] of routes) { const m = hash.match(re); if (m) { $("#app").innerHTML = ""; fn(...m.slice(1)); window.scrollTo(0, 0); return; } }
+  $("#app").innerHTML = "<p>Not found.</p>";
+}
+addEventListener("hashchange", go);
+const nav = (h) => { location.hash = h; };
+async function reload() { await refresh(); await go(); }
+const bind = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
+
+// ---------- clients ----------
+route(/^\/$/, () => {
+  const outstanding = (id) => S.invoices.filter((i) => i.clientId === id && i.published).reduce((s, i) => s + i.outstanding, 0);
+  const draw = (q = "") => {
+    const list = S.clients.filter((c) => (c.name + c.email).toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
+    $("#list").innerHTML = list.length ? list.map((c) => {
+      const ps = S.projects.filter((p) => p.clientId === c.id);
+      const nextP = ps.filter((p) => p.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0] || ps[0];
+      const owe = outstanding(c.id);
+      return `<a class="card item row sb" href="#/client/${c.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(c.name)}</strong><br><span class="muted">${esc(c.email || "no email")}</span></div>
+      <div class="muted">${nextP ? esc(nextP.title) + (nextP.date ? " · " + nice(nextP.date) : "") + " " + pill(nextP.status) : "No project yet"}${owe > 0 ? ` · <strong>${fmt(owe)}</strong> outstanding` : ""}</div></a>`;
+    }).join("") : `<p class="muted">No clients yet. Add your first one above.</p>`;
+  };
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cli<em>ents</em></h1>
+    <div class="row" style="margin:14px 0 20px"><input id="q" class="grow" placeholder="Search clients…"><button id="new">+ New client</button></div>
+    <div id="newform"></div><div id="list"></div>`;
+  draw();
+  $("#q").oninput = (e) => draw(e.target.value);
+  bind("#new", () => {
+    $("#newform").innerHTML = `<div class="card"><div class="grid">${field("name", "Full name (e.g. Anna & Tom Smith)")}${field("email", "Email", "", "email")}${field("email2", "Second email (optional)", "", "email")}${field("phone", "Phone")}</div>
+      <p><button id="savec">Save client</button> <button class="ghost" id="cancelc">Cancel</button></p></div>`;
+    $("#f_name").focus();
+    bind("#cancelc", () => ($("#newform").innerHTML = ""));
+    bind("#savec", async () => { const r = await api("client", "POST", set({}, ["name", "email", "email2", "phone"])); await refresh(); nav("/client/" + r.item.id); });
+  });
+});
+
+route(/^\/client\/(\w+)$/, (id) => {
+  const c = client(id);
+  if (!c) return ($("#app").innerHTML = "<p>Client not found.</p>");
+  const ps = S.projects.filter((p) => p.clientId === id), cs = S.contracts.filter((x) => x.clientId === id), is = S.invoices.filter((x) => x.clientId === id);
+  const portal = S.origin + "/c/" + c.token;
+  $("#app").innerHTML = `<p class="mono"><a href="#/">← Clients</a></p><h1>${esc(c.name)}</h1>
+  <div class="card"><div class="grid">${field("name", "Full name", c.name)}${field("email", "Email", c.email, "email")}${field("email2", "Second email", c.email2, "email")}${field("phone", "Phone", c.phone)}</div>
+    ${area("notes", "Notes", c.notes)}<p class="row"><button id="save">Save</button><button class="danger" id="del">Delete client</button></p></div>
+  <h2>Client page</h2><div class="card"><p class="muted">One private page with their contracts, invoices and gallery link.</p><div class="link">${esc(portal)}</div>
+    <p class="row"><a class="btn ghost" href="${esc(portal)}" target="_blank">Open</a><button class="ghost" id="cp">Copy link</button><button class="ghost" id="mailp">Email it to them</button></p></div>
+  <div class="row sb"><h2>Projects</h2><button class="ghost sm" id="newp">+ Project</button></div><div id="pform"></div>
+  ${ps.map((p) => `<div class="card item row sb" data-p="${p.id}"><div><strong>${esc(p.title)}</strong> ${pill(p.status)}<br><span class="muted">${esc([nice(p.date), p.location, p.package].filter(Boolean).join(" · "))}</span></div><div>${p.price ? fmt(p.price) : ""}</div></div>`).join("") || '<p class="muted">No projects yet.</p>'}
+  <div class="row sb"><h2>Contracts</h2><button class="ghost sm" id="newc">+ Contract</button></div><div id="cform"></div>
+  ${cs.map((x) => `<a class="card item row sb" href="#/contract/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.title)}</strong></div><div>${pill(x.status)}</div></a>`).join("") || '<p class="muted">No contracts yet.</p>'}
+  <div class="row sb"><h2>Invoices</h2><a class="btn ghost sm" href="#/invoice/new/${id}">+ Invoice</a></div>
+  ${is.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> <span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}</div></a>`).join("") || '<p class="muted">No invoices yet.</p>'}`;
+  bind("#save", async () => { await api("client/" + id, "POST", set({}, ["name", "email", "email2", "phone", "notes"])); toast("Saved"); await reload(); });
+  bind("#del", async () => { if (confirm("Delete this client?")) { await api("client/" + id, "DELETE"); await refresh(); nav("/"); } });
+  bind("#cp", () => copy(portal));
+  bind("#mailp", async () => { const r = await api(`client/${id}/portal`, "POST"); r.emailed ? toast("Emailed") : toast("Email failed: " + r.emailError + " (copy the link instead)", true); });
+  document.querySelectorAll("[data-p]").forEach((el) => (el.onclick = () => projectForm(id, project(el.dataset.p))));
+  bind("#newp", () => projectForm(id));
+  bind("#newc", () => {
+    $("#cform").innerHTML = `<div class="card"><div class="grid">${select("tpl", "Template", S.templates.map((t) => [t.id, t.name]), "")}${select("proj", "Project", [["", "(none)"], ...ps.map((p) => [p.id, p.title])], ps[0]?.id || "")}</div>
+      <p><button id="mk">Create draft from template</button> <button class="ghost" id="mkblank">Blank contract</button></p></div>`;
+    const create = async (blank) => {
+      let title = "New contract", body = "";
+      if (!blank) { const r = await api("render", "POST", { templateId: val("f_tpl"), clientId: id, projectId: val("f_proj") }); title = r.title; body = r.body; }
+      const r = await api("contract", "POST", { clientId: id, projectId: val("f_proj"), title, body: body || "Write the contract here." });
+      await refresh(); nav("/contract/" + r.item.id);
+    };
+    bind("#mk", () => create(false)); bind("#mkblank", () => create(true));
+  });
+});
+
+function projectForm(clientId, p = {}) {
+  $("#pform").innerHTML = `<div class="card"><div class="grid">${field("title", "Title (e.g. Anna & Tom wedding)", p.title)}${select("type", "Type", ["Wedding", "Pre-wedding", "Proposal", "Elopement", "Engagement", "Other"].map((x) => [x, x]), p.type || "Wedding")}
+    ${field("date", "Date", p.date, "date")}${field("location", "Location", p.location)}${field("package", "Package", p.package)}${select("status", "Status", ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"].map((x) => [x, x]), p.status || "enquiry")}
+    ${field("price", "Total price", p.price || "", "number", 'step="0.01" min="0"')}${field("deposit", "Deposit / retainer", p.deposit || "", "number", 'step="0.01" min="0"')}${field("galleryUrl", "Gallery link (shown on client page)", p.galleryUrl)}</div>
+    ${area("notes", "Notes", p.notes)}<p class="row"><button id="savep">Save project</button><button class="ghost" id="cancelp">Cancel</button>${p.id ? '<button class="danger" id="delp">Delete</button>' : ""}</p></div>`;
+  $("#pform").scrollIntoView({ behavior: "smooth", block: "center" });
+  bind("#cancelp", () => ($("#pform").innerHTML = ""));
+  bind("#savep", async () => { await api("project" + (p.id ? "/" + p.id : ""), "POST", set({ clientId }, ["title", "type", "date", "location", "package", "status", "price", "deposit", "galleryUrl", "notes"])); toast("Saved"); await reload(); });
+  bind("#delp", async () => { if (confirm("Delete this project?")) { await api("project/" + p.id, "DELETE"); await reload(); } });
+}
+
+// ---------- contracts ----------
+route(/^\/contracts$/, () => {
+  const list = [...S.contracts].sort((a, b) => b.created.localeCompare(a.created));
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Con<em>tracts</em></h1><p class="muted">Create contracts from a client's page.</p>` +
+    (list.map((x) => `<a class="card item row sb" href="#/contract/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.title)}</strong><br><span class="muted">${esc(client(x.clientId)?.name || "")}${x.signedBy ? " · signed by " + esc(x.signedBy) : ""}</span></div><div>${pill(x.status)}</div></a>`).join("") || '<p class="muted">Nothing yet.</p>');
+});
+
+route(/^\/contract\/(\w+)$/, async (id) => {
+  const x = S.contracts.find((c) => c.id === id);
+  if (!x) return ($("#app").innerHTML = "<p>Not found.</p>");
+  const cl = client(x.clientId), link = S.origin + "/sign/" + x.token, locked = x.status === "signed";
+  const audit = (await api(`contract/${id}/audit`)).audit;
+  $("#app").innerHTML = `<p class="mono"><a href="#/client/${x.clientId}">← ${esc(cl?.name || "Client")}</a></p><h1>${esc(x.title)}</h1><p>${pill(x.status)} <span class="muted">${esc(cl?.email || "no email on the client record")}</span></p>
+  ${locked ? "" : '<p class="muted">Use merge fields like <code>{{client_name}}</code> — they are already filled in from the template. Lines starting with <code># </code> become headings; a blank line starts a new paragraph.</p>'}
+  <div class="card">${field("title", "Title", x.title, "text", locked ? "disabled" : "")}${area("body", "Contract text", x.body, "big").replace("<textarea", locked ? "<textarea disabled" : "<textarea")}</div>
+  <p class="row">${locked ? `<a class="btn" href="/studio/api/contract/${id}/pdf" target="_blank">Signed PDF</a>` : `<button id="save">Save</button><button id="send">${x.status === "sent" ? "Save &amp; email again" : "Save &amp; email to client"}</button>`}
+  ${x.status !== "draft" && x.status !== "void" ? `<button class="ghost" id="cl">Copy signing link</button>` : ""}
+  ${x.status === "sent" ? '<button class="danger" id="void">Withdraw</button>' : ""}${x.status === "void" ? '<button class="ghost" id="reopen">Reopen as draft</button>' : ""}
+  ${!locked ? '<button class="danger" id="del">Delete</button>' : ""}</p>
+  ${x.status !== "draft" ? `<div class="link">${esc(link)}</div>` : ""}
+  <h2>Audit trail</h2><div class="card"><table><tr><th>When (UTC)</th><th>Event</th><th>IP</th><th>Note</th></tr>${audit.map((a) => `<tr><td>${esc(new Date(a.t).toISOString().replace("T", " ").slice(0, 19))}</td><td>${esc(a.e)}</td><td>${esc(a.ip || "")}</td><td class="muted">${esc(a.note || "")}</td></tr>`).join("")}</table></div>`;
+  const persist = () => api("contract/" + id, "POST", { title: val("f_title"), body: val("f_body") });
+  bind("#save", async () => { await persist(); toast("Saved"); await reload(); });
+  bind("#send", async () => {
+    if (!cl?.email) return toast("Add an email to the client first", true);
+    if (!confirm(`Email this contract to ${cl.email}?`)) return;
+    await persist(); const r = await api(`contract/${id}/send`, "POST", {});
+    r.emailed ? toast("Sent to " + cl.email) : toast("Email failed: " + r.emailError + " — copy the link and send it yourself", true); await reload();
+  });
+  bind("#cl", () => copy(link));
+  bind("#void", async () => { if (confirm("Withdraw this contract? The link will stop working.")) { await api(`contract/${id}/void`, "POST", {}); await reload(); } });
+  bind("#reopen", async () => { await api(`contract/${id}/reopen`, "POST", {}); await reload(); });
+  bind("#del", async () => { if (confirm("Delete this contract?")) { await api("contract/" + id, "DELETE"); await refresh(); nav("/client/" + x.clientId); } });
+});
+
+// ---------- invoices ----------
+route(/^\/invoices$/, () => {
+  const list = [...S.invoices].sort((a, b) => b.issued.localeCompare(a.issued));
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Invo<em>ices</em></h1><p class="muted">Create invoices from a client's page.</p>` +
+    (list.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> · ${esc(client(x.clientId)?.name || "")}<br><span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}</div></a>`).join("") || '<p class="muted">Nothing yet.</p>');
+});
+
+route(/^\/invoice\/(new\/)?(\w+)$/, (isNew, id) => {
+  const inv = isNew ? { clientId: id, projectId: "", issued: today(), items: [], parts: [], methods: [], notes: "", published: false }
+    : S.invoices.find((i) => i.id === id);
+  if (!inv) return ($("#app").innerHTML = "<p>Not found.</p>");
+  const cl = client(inv.clientId);
+  const ps = S.projects.filter((p) => p.clientId === inv.clientId);
+  let items = inv.items.length ? inv.items.map((i) => ({ ...i })) : [{ desc: "", qty: 1, amount: "" }];
+  let parts = inv.parts.map((p) => ({ ...p }));
+  const link = inv.token ? S.origin + "/i/" + inv.token : "";
+  const total = () => items.reduce((s, i) => s + (+i.qty || 0) * (+i.amount || 0), 0);
+
+  const render = () => {
+    const sum = parts.reduce((s, p) => s + (+p.amount || 0), 0);
+    $("#items").innerHTML = `<table><tr><th>Description</th><th style="width:70px">Qty</th><th style="width:130px" class="r">Amount</th><th style="width:40px"></th></tr>` +
+      items.map((i, n) => `<tr><td><input data-i="${n}" data-k="desc" value="${esc(i.desc)}" placeholder="Wedding photography &amp; film"></td><td><input data-i="${n}" data-k="qty" type="number" min="0" step="1" value="${i.qty}"></td>
+      <td><input data-i="${n}" data-k="amount" type="number" min="0" step="0.01" value="${i.amount}" style="text-align:right"></td><td><button class="ghost sm" data-rm="${n}">×</button></td></tr>`).join("") +
+      `<tr><td colspan="2" class="r"><strong>Total</strong></td><td class="r"><strong>${fmt(total())}</strong></td><td></td></tr></table><p><button class="ghost sm" id="additem">+ Line item</button></p>`;
+    $("#parts").innerHTML = `<table><tr><th>Payment</th><th style="width:150px">Due</th><th style="width:130px" class="r">Amount</th><th style="width:130px">Paid</th><th style="width:40px"></th></tr>` +
+      (parts.map((p, n) => `<tr><td><input data-pn="${n}" data-k="label" value="${esc(p.label)}"></td><td><input data-pn="${n}" data-k="due" type="date" value="${p.due}"></td>
+      <td><input data-pn="${n}" data-k="amount" type="number" min="0" step="0.01" value="${p.amount}" style="text-align:right"></td>
+      <td>${inv.id ? `<label style="margin:0;text-transform:none;font:inherit"><input type="checkbox" data-paid="${n}" ${p.paid ? "checked" : ""}> ${p.paid ? nice(p.paidAt) || "paid" : "mark paid"}</label>` : ""}</td><td><button class="ghost sm" data-rmp="${n}">×</button></td></tr>`).join("") || `<tr><td colspan="5" class="muted">No schedule: it will be one payment in full.</td></tr>`) +
+      `</table><p class="${Math.abs(sum - total()) > 0.005 && parts.length ? "" : "muted"}" style="${Math.abs(sum - total()) > 0.005 && parts.length ? "color:#9b3b3b" : ""}">Payments add up to ${fmt(sum)} of ${fmt(total())}.</p>`;
+    document.querySelectorAll("[data-i]").forEach((el) => (el.oninput = () => { items[el.dataset.i][el.dataset.k] = el.value; const tot = $("#items table tr:last-child td:nth-child(2) strong"); if (tot) tot.textContent = fmt(total()); }));
+    document.querySelectorAll("[data-pn]").forEach((el) => (el.oninput = () => (parts[el.dataset.pn][el.dataset.k] = el.value)));
+    document.querySelectorAll("[data-rm]").forEach((el) => (el.onclick = () => { items.splice(el.dataset.rm, 1); render(); }));
+    document.querySelectorAll("[data-rmp]").forEach((el) => (el.onclick = () => { parts.splice(el.dataset.rmp, 1); render(); }));
+    document.querySelectorAll("[data-paid]").forEach((el) => (el.onchange = async () => { await api(`invoice/${inv.id}/part`, "POST", { index: +el.dataset.paid, paid: el.checked }); toast("Updated"); await reload(); }));
+    bind("#additem", () => { items.push({ desc: "", qty: 1, amount: "" }); render(); });
+  };
+
+  $("#app").innerHTML = `<p class="mono"><a href="#/client/${inv.clientId}">← ${esc(cl?.name || "Client")}</a></p><h1>${inv.number ? esc(inv.number) : "New <em>invoice</em>"}</h1>
+  ${inv.id ? `<p>${pill(inv.status)} <span class="muted">${esc(cl?.email || "")}</span></p>` : ""}
+  <div class="card"><div class="grid">${select("proj", "Project", [["", "(none)"], ...ps.map((p) => [p.id, p.title])], inv.projectId)}${field("issued", "Issue date", inv.issued, "date")}</div>
+    <label>Line items</label><div id="items"></div></div>
+  <h2>Deposit &amp; balance</h2><div class="card"><div class="row"><div class="grow"><label>Deposit amount</label><input id="dep" type="number" min="0" step="0.01" placeholder="e.g. 500"></div>
+    <div class="grow"><label>Deposit due</label><input id="depdue" type="date" value="${today()}"></div><div class="grow"><label>Balance due</label><input id="baldue" type="date"></div>
+    <div style="align-self:end"><button class="ghost" id="split">Split into deposit + balance</button></div></div><div id="parts" style="margin-top:12px"></div>
+    <p><button class="ghost sm" id="addpart">+ Payment</button></p></div>
+  <h2>How to pay</h2><div class="card">${S.settings.methods.length ? S.settings.methods.map((m) => `<label style="text-transform:none;font:inherit;margin:4px 0"><input type="checkbox" data-m="${m.id}" ${!inv.methods.length || inv.methods.includes(m.id) ? "checked" : ""}> ${esc(m.name)}</label>`).join("") : '<p class="muted">Add payment methods (Revolut, Wise, bank transfer…) under <a href="#/settings">Settings</a>.</p>'}
+    ${area("notes", "Note on the invoice (optional)", inv.notes)}</div>
+  <p class="row"><button id="save">Save</button><button id="send">Save &amp; email to client</button>${inv.id ? '<button class="ghost" id="cl">Copy invoice link</button>' : ""}${inv.id ? '<button class="danger" id="del">Delete</button>' : ""}</p>
+  ${link ? `<div class="link">${esc(link)}${inv.published ? "" : " (not visible to the client until you send it)"}</div>` : ""}`;
+  render();
+
+  const prefill = () => { const p = ps.find((x) => x.id === val("f_proj")); if (p && p.price && items.length === 1 && !items[0].amount) { items[0] = { desc: p.title + (p.package ? " · " + p.package : ""), qty: 1, amount: p.price }; if (p.deposit) $("#dep").value = p.deposit; render(); } };
+  $("#f_proj").onchange = prefill; if (isNew && ps.length === 1) { $("#f_proj").value = ps[0].id; prefill(); }
+  bind("#split", () => {
+    const t = total(), d = +$("#dep").value || 0;
+    if (!t) return toast("Add line items first", true);
+    if (d <= 0 || d >= t) return toast("Deposit must be more than 0 and less than the total", true);
+    parts = [{ label: "Deposit", amount: d, due: $("#depdue").value, paid: false, paidAt: "" }, { label: "Balance", amount: Math.round((t - d) * 100) / 100, due: $("#baldue").value, paid: false, paidAt: "" }];
+    render();
+  });
+  bind("#addpart", () => { parts.push({ label: "Payment", amount: "", due: "", paid: false, paidAt: "" }); render(); });
+  const persist = async (publish) => {
+    const methods = [...document.querySelectorAll("[data-m]")].filter((x) => x.checked).map((x) => x.dataset.m);
+    const r = await api("invoice" + (inv.id ? "/" + inv.id : ""), "POST", { clientId: inv.clientId, projectId: val("f_proj"), issued: val("f_issued"), items, parts, methods, notes: val("f_notes"), published: inv.published || publish });
+    return r.item;
+  };
+  bind("#save", async () => { const it = await persist(false); toast("Saved"); await refresh(); nav("/invoice/" + it.id); if (inv.id) go(); });
+  bind("#send", async () => {
+    if (!cl?.email) return toast("Add an email to the client first", true);
+    if (!confirm(`Email this invoice to ${cl.email}?`)) return;
+    const it = await persist(true); const r = await api(`invoice/${it.id}/send`, "POST", {});
+    r.emailed ? toast("Sent to " + cl.email) : toast("Email failed: " + r.emailError + " — copy the link and send it yourself", true);
+    await refresh(); nav("/invoice/" + it.id); if (inv.id) go();
+  });
+  bind("#cl", () => copy(link));
+  bind("#del", async () => { if (confirm("Delete this invoice?")) { await api("invoice/" + inv.id, "DELETE"); await refresh(); nav("/client/" + inv.clientId); } });
+});
+
+// ---------- templates ----------
+route(/^\/templates$/, () => {
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Temp<em>lates</em></h1><p class="muted">Contract templates. Write them once, then create a contract from any client page.</p>
+  <p><a class="btn" href="#/template/new">+ New template</a></p>` +
+    S.templates.map((t) => `<a class="card item" href="#/template/${t.id}" style="display:block;text-decoration:none;color:inherit"><strong>${esc(t.name)}</strong><br><span class="muted">${esc(t.body.slice(0, 110))}…</span></a>`).join("");
+});
+route(/^\/template\/(\w+)$/, (id) => {
+  const t = id === "new" ? { name: "", body: "# Agreement\n\nThis agreement is made on {{today}} between {{business_name}} and {{client_name}}.\n\n" } : S.templates.find((x) => x.id === id);
+  if (!t) return ($("#app").innerHTML = "<p>Not found.</p>");
+  $("#app").innerHTML = `<p class="mono"><a href="#/templates">← Templates</a></p><h1>${id === "new" ? "New <em>template</em>" : esc(t.name)}</h1>
+  <div class="card">${field("name", "Template name", t.name)}${area("body", "Contract text", t.body, "big")}
+  <p class="muted">Merge fields: ${["client_name", "client_email", "project_title", "project_type", "event_date", "location", "package", "price", "deposit", "balance", "today", "business_name", "owner_name"].map((f) => `<code>{{${f}}}</code>`).join(" ")}.
+  Lines starting with <code># </code> are headings. Fields are filled in when you create a contract, and you can still edit the text afterwards.</p></div>
+  <p class="row"><button id="save">Save</button>${id !== "new" ? '<button class="ghost" id="dup">Duplicate</button><button class="danger" id="del">Delete</button>' : ""}</p>`;
+  bind("#save", async () => { const r = await api("template" + (id === "new" ? "" : "/" + id), "POST", { name: val("f_name"), body: val("f_body") }); toast("Saved"); await refresh(); nav("/template/" + r.item.id); });
+  bind("#dup", async () => { const r = await api("template", "POST", { name: val("f_name") + " (copy)", body: val("f_body") }); await refresh(); nav("/template/" + r.item.id); });
+  bind("#del", async () => { if (confirm("Delete this template?")) { await api("template/" + id, "DELETE"); await refresh(); nav("/templates"); } });
+});
+
+// ---------- settings ----------
+route(/^\/settings$/, () => {
+  const s = S.settings;
+  let methods = s.methods.map((m) => ({ ...m }));
+  const render = () => {
+    $("#methods").innerHTML = methods.map((m, n) => `<div class="card"><div class="grid"><div><label>Name</label><input data-n="${n}" data-k="name" value="${esc(m.name)}" placeholder="Revolut"></div>
+      <div><label>Payment link (optional)</label><input data-n="${n}" data-k="link" value="${esc(m.link)}" placeholder="https://revolut.me/…"></div></div>
+      <label>Instructions the client sees</label><textarea data-n="${n}" data-k="instructions" placeholder="Send to @yourtag, or IBAN …">${esc(m.instructions)}</textarea><p><button class="danger sm" data-rm="${n}">Remove</button></p></div>`).join("") || '<p class="muted">No payment methods yet.</p>';
+    document.querySelectorAll("[data-n]").forEach((el) => (el.oninput = () => (methods[el.dataset.n][el.dataset.k] = el.value)));
+    document.querySelectorAll("[data-rm]").forEach((el) => (el.onclick = () => { methods.splice(el.dataset.rm, 1); render(); }));
+  };
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Set<em>tings</em></h1>
+  <div class="card"><div class="grid">${field("businessName", "Business name", s.businessName)}${field("ownerName", "Your first name (email sign-off)", s.ownerName)}${field("email", "Your email (gets signed-contract copies)", s.email, "email")}
+    ${field("fromEmail", "Send emails from", s.fromEmail, "email")}${field("currency", "Currency symbol", s.currency)}${field("nextInvoice", "Next invoice number", s.nextInvoice, "number")}
+    ${field("signerName", "Countersign name (typed on signed PDFs)", s.signerName)}</div>${area("address", "Address / details shown on invoices", s.address)}${area("emailFooter", "Email sign-off", s.emailFooter)}</div>
+  <h2>Payment methods</h2><div id="methods"></div><p><button class="ghost" id="addm">+ Payment method</button></p>
+  <p><button id="save">Save settings</button></p>`;
+  render();
+  bind("#addm", () => { methods.push({ id: "", name: "", link: "", instructions: "" }); render(); });
+  bind("#save", async () => { await api("settings", "POST", { ...set({}, ["businessName", "ownerName", "email", "fromEmail", "currency", "nextInvoice", "signerName", "address", "emailFooter"]), methods }); toast("Saved"); await reload(); });
+});
+
+go();
+</script>
+</body>
+</html>

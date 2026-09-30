@@ -673,7 +673,7 @@ def build():
     page('404.html', 'Page not found · pixelbystef', 'Page not found.', body)
 
     # ---------- robots.txt + sitemap.xml ----------
-    open(os.path.join(OUT, 'robots.txt'), 'w').write('User-agent: *\nDisallow: /g/\nDisallow: /g-admin/\n' + ('Disallow: /\n' if PREVIEW else '') + 'Sitemap: https://pixelbystef.com/sitemap.xml\n')
+    open(os.path.join(OUT, 'robots.txt'), 'w').write('User-agent: *\nDisallow: /g/\nDisallow: /g-admin/\nDisallow: /studio\nDisallow: /sign/\nDisallow: /i/\nDisallow: /c/\n' + ('Disallow: /\n' if PREVIEW else '') + 'Sitemap: https://pixelbystef.com/sitemap.xml\n')
     open(os.path.join(OUT, 'sitemap.xml'), 'w').write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + ''.join(f'  <url><loc>{u}</loc></url>\n' for u in SITEMAP) + '</urlset>\n')
 
     # ---------- copy only referenced assets ----------
