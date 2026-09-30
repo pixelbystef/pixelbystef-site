@@ -29,7 +29,9 @@ const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || "");
 const today = () => new Date().toISOString().slice(0, 10);
 const niceDate = (iso) => (isDate(iso) ? new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : "");
 const niceStamp = (iso) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
-const fmt = (n, cur) => (cur || "€") + (Number(n) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n, cur, short) => (cur || "£") + (Number(n) || 0).toLocaleString("en-GB", short && Number.isInteger(+n) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const slashDate = (iso) => (isDate(iso) ? iso.split("-").reverse().join("/") : "");
+const lines = (v) => String(v || "").split("\n").map((l) => l.trim()).filter(Boolean);
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || "");
 
 function safeEq(a, b) {
@@ -84,12 +86,25 @@ async function newToken(env, type, id) {
   await env.GALLERIES.put(`studio/tok/${token}`, `${type}:${id}`);
   return token;
 }
+const DEFAULT_METHODS = [
+  { id: "wise-bank", name: "Bank transfer (Wise, GBP)", link: "", instructions: `Account name: Stefanus Wijaya
+Account number: 99684888
+Sort code: 23-08-01 (use when sending from the UK)
+
+IBAN: GB51 TRWI 2308 0199 6848 88
+Swift/BIC: TRWIGB2LXXX (use when sending from outside the UK)
+
+Bank: Wise Payments Limited, 1st Floor, Worship Square, 65 Clifton Street, London, EC2A 4JE, United Kingdom` },
+  { id: "wise-link", name: "Wise", link: "https://wise.com/pay/me/stefanusr1", instructions: "Pay with the button below.\nNew to Wise? Sign up with https://wise.com/invite/ilpc/stefanusr1 and get your first transfer fee-free (up to 500 GBP)." },
+  { id: "revolut", name: "Revolut", link: "https://revolut.me/pixelbystef", instructions: "Send the money with the button below, or open https://revolut.me/pixelbystef" },
+];
 async function getSettings(env) {
   const o = await env.GALLERIES.get("studio/settings.json");
   const s = o ? await o.json() : {};
   return {
-    businessName: "pixelbystef", ownerName: "Stefan", email: OWNER_EMAIL, fromEmail: "studio@pixelbystef.com",
-    currency: "€", address: "", signerName: "", nextInvoice: 1, methods: [], emailFooter: "", ...s,
+    businessName: "Pixel by Stef", ownerName: "Stefan", email: OWNER_EMAIL, fromEmail: "studio@pixelbystef.com",
+    currency: "£", address: "", signerName: "Stefanus Wijaya", signerStrokes: null, nextInvoice: 1, emailFooter: "", ...s,
+    methods: s.methods || DEFAULT_METHODS,
   };
 }
 const putSettings = (env, s) => env.GALLERIES.put("studio/settings.json", JSON.stringify(s), { httpMetadata: { contentType: "application/json" } });
@@ -176,134 +191,172 @@ function fields(settings, client, project) {
   return {
     client_name: client?.name || "", client_email: client?.email || "", client_phone: client?.phone || "",
     project_title: project?.title || "", project_type: project?.type || "", event_date: niceDate(project?.date), location: project?.location || "",
-    package: project?.package || "", price: price ? fmt(price, cur) : "", deposit: deposit ? fmt(deposit, cur) : "",
-    balance: price ? fmt(price - deposit, cur) : "", today: niceDate(today()),
+    session_date: slashDate(project?.date), session_time: project?.time || "", package: project?.package || "",
+    deliverables_list: lines(project?.deliverables).map((l) => "- **" + l + "**").join("\n"),
+    extras_list: lines(project?.extras).map((l) => "- " + l).join("\n"),
+    price: price ? fmt(price, cur, true) : "", deposit: deposit ? fmt(deposit, cur, true) : "",
+    balance: price ? fmt(price - deposit, cur, true) : "", balance_due_date: slashDate(project?.balanceDue || project?.date),
+    today: niceDate(today()),
     business_name: settings.businessName, owner_name: settings.ownerName, business_email: settings.email,
   };
 }
-const fill = (tpl, vars) => String(tpl).replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+const fill = (tpl, vars) => String(tpl).replace(/^[ \t]*\{\{\s*(\w+)\s*\}\}[ \t]*\n/gm, (m, k) => (k in vars && vars[k] === "" ? "" : m)).replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+// Markup: "# Title", "## 1. Section", "- bullet", **bold**, blank line = new paragraph.
 function blocks(body) {
-  return String(body).split(/\n{2,}/).map((chunk) => chunk.trim()).filter(Boolean).map((chunk) =>
-    chunk.startsWith("# ") && !chunk.includes("\n") ? { t: "h", text: chunk.slice(2) } : { t: "p", text: chunk });
+  const out = [];
+  for (const chunk of String(body).split(/\n{2,}/)) {
+    let para = [], items = [];
+    const flushP = () => { if (para.length) out.push({ t: "p", text: para.join("\n") }); para = []; };
+    const flushB = () => { if (items.length) out.push({ t: "bullets", items }); items = []; };
+    for (const ln of chunk.trim().split("\n")) {
+      if (/^# /.test(ln)) { flushP(); flushB(); out.push({ t: "title", text: ln.slice(2) }); }
+      else if (/^## /.test(ln)) { flushP(); flushB(); out.push({ t: "h", text: ln.slice(3) }); }
+      else if (/^- /.test(ln)) { flushP(); items.push(ln.slice(2)); }
+      else if (ln.trim()) { flushB(); para.push(ln); }
+    }
+    flushP(); flushB();
+  }
+  return out;
 }
-const bodyHtml = (body) => blocks(body).map((b) => (b.t === "h" ? `<h3>${esc(b.text)}</h3>` : `<p>${esc(b.text).replace(/\n/g, "<br>")}</p>`)).join("\n");
+const inline = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+const bodyHtml = (body) => blocks(body).map((b) =>
+  b.t === "title" ? `<h2 style="text-align:center;margin-top:8px">${inline(b.text)}</h2>` :
+  b.t === "h" ? `<h3 style="font-size:19px;margin-top:26px">${inline(b.text)}</h3>` :
+  b.t === "bullets" ? `<ul>${b.items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>` :
+  `<p>${inline(b.text).replace(/\n/g, "<br>")}</p>`).join("\n");
+
+// One layout for every kind of shoot; only the wording of the Session changes.
+const CONTRACT_BODY = (what) => `# Photography Services Agreement
+
+**THIS AGREEMENT** is made as of {{today}} (the "**Effective Date**") between **{{client_name}}** ("**Client**") and **{{business_name}}** ("**Photographer**").
+
+## 1. Engagement of Photographer
+
+1.1 **Services.** Subject to the terms set out herein, Client engages Photographer to provide, and Photographer agrees to provide, the photography services described in this Section 1.1 (the "**Services**") in connection with the ${what} of **{{client_name}}** and Client's partner (the "**Session**").
+
+Date of Session: **{{session_date}}**
+Time of Session: **{{session_time}}**
+Location of Session: **{{location}}**
+Description of Services:
+{{deliverables_list}}
+
+As part of the Services, the Photographer will produce or take similar action to create materials from Images and provide related deliverables (as set out above) pursuant to the provision of the Services ("**Work Product**"). "**Images**" means photographic material, whether still or moving, created by Photographer pursuant to this Agreement and includes, but is not limited to, transparencies, negatives, prints or digital files, captured, recorded, stored or delivered in any type of analogue, photographic, optical, electronic, magnetic, digital or any other medium.
+
+1.2 **Exclusivity.** Client acknowledges and agrees that Photographer will be the exclusive provider of the Services in coverage of the Session, unless otherwise agreed to by the parties in writing.
+
+## 2. Fees and Deposit
+
+2.1 **Fees.** Client will pay Photographer the fees set out herein in this Section 2.1 ("**Fees**"), including any applicable federal or state/provincial sales or value-added taxes due on such Fees.
+- Total Fee for Services: **{{price}}**
+{{extras_list}}
+- Deposit due upon signing: **{{deposit}}**
+- Remaining amount due on **{{balance_due_date}}**: **{{balance}}** + remaining additional pricing
+
+2.2 **Deposit.** Client acknowledges and agrees that the deposit amount set out above is due upon the signing of this Agreement and is not refundable ("**Deposit**"), so as to fairly compensate Photographer for committing his/her time to provide the Services and turning down other potential projects or clients. Both parties agree that the Deposit will be credited towards the total Fees payable by Client. The deposit is due 24 hours after the deposit invoice is sent to the Client. If the deposit is not paid by the due date, this contract is void.
+
+2.3 **Invoice.** Photographer will issue an invoice to Client upon agreement of the Services ("**Invoice**"). Client agrees to pay all Fees outstanding on or prior to the due dates set out in Section 2.1. Any payment after the due date will incur a late fee of 5% per month on the outstanding balance. Client acknowledges that the final amount payable may be subject to change depending on the amount actual expenses incurred. Client confirms and agrees that the final calculations provided in the Invoice, should they be different from the total listed in Section 2.1, will be the final amount payable. No additional charges will be incurred without prior written agreement from the Client, except for overtime billed at the rate specified in Section 2.1 and optional services listed under Additional Pricing that are requested by the Client.
+
+## 3. Client Responsibilities
+
+3.1 **Required Consents.** Client will ensure that all required consents, as applicable, have been obtained prior to performance of the Services, including any consents required for the performance of Services and the delivery of Work Product by Photographer and, as applicable, from venues or locales where the Services are to be performed or from attendees of the Session.
+
+3.2 **Expenses.** Client will provide the means of travel or be responsible for reasonable travel expenses incurred by Photographer that are necessary for the performance of the Services or travel that is otherwise requested by Client where the location of the performance of the Services is not in the city of {{location}}. Client will be responsible for any other expenses incurred by Photographer that are necessary for the performance of the Services as more particularly set out in Article 2.
+
+3.3 **Meals.** When the number of hours that Photographer will be providing the Services is expected to be in excess of 4 hours in duration, Client will provide a meal for Photographer and Photography Staff (employees, assistants or other parties engaged by Photographer to assist with the Services), or be responsible for reasonable meal expenses incurred for which Photographer shall provide an invoice.
+
+3.4 **Waiver.** Client (on behalf of himself/herself and any other participant whose image or recording may be captured by the Services) hereby waives all rights and claims, and releases Photographer from any claim or cause of action, whether now known or unknown, relating to the sale, display, license, use and exploitation of Images pursuant to this Agreement.
+
+## 4. Photographer Responsibilities
+
+4.1 **Equipment.** Client will not be required to supply any photography equipment to Photographer.
+
+4.2 **Manner of Service.** Photographer will ensure that the Services are performed in a good, expedient, workmanlike and safe manner, and in such a manner as to avoid unreasonable interference with Client's activities.
+
+4.3 **Photography Staff.** Photographer will, and will ensure that all Photography Staff (employees, assistants or other parties engaged by Photographer to assist with the Services):
+- comply with the reasonable directions of Client from time to time regarding the safety of attendees at the Session and applicable health, safety and security requirements of any locations where the Services are provided;
+- ensure that Work Product meets the specifications set out in Section 1.1 in all material respects.
+- Photographer will be responsible in every respect for the actions of all Photography Staff.
+
+4.4 **Delivery Timeline.** The Photographer agrees to deliver the final edited photos to the Client within 14 days from the date of the photoshoot. This timeline applies to all deliverables unless otherwise stated in writing by the Photographer. A preview of the photographs/videos will be delivered within 24 hours.
+
+4.5 **Video Revisions and Editing Policy.** The Services include a maximum of one (1) round of minor edits to the delivered video Work Product. For the purposes of this Agreement, minor edits are limited to the removal or replacement of existing scenes and do not include changes to overall structure, pacing, colour grading, or visual style. Music selection is final once the first draft is delivered. No changes to music will be made after the first draft unless a specific request has been agreed upon in writing prior to editing. The Client must submit any revision requests within seven (7) days of delivery of the first draft. Requests submitted after this period may be declined or subject to additional fees at the Photographer's discretion. Any additional edits, revisions beyond the first round, or requests outside the scope of minor edits may be declined or subject to additional fees.
+
+4.6 **Photo Revisions and Editing Policy.** The Client acknowledges and agrees that the Photographer's editing style, colour grading, composition, and artistic approach are subjective and form part of the Photographer's creative discretion. Accordingly, no revisions, re-edits, or alterations to delivered photographic Work Product are included under this Agreement. The Photographer is not required to provide unedited images unless otherwise agreed in writing. Any additional editing requests may be considered at the Photographer's sole discretion and may be subject to additional fees.
+
+4.7 **File Retention and Archiving.** The Photographer will retain the final delivered Work Product and associated project files for a minimum period of six (6) months from the date of final delivery ("**Retention Period**"). After the Retention Period, the Photographer makes no guarantee regarding the availability, storage, or recoverability of any files and shall not be responsible for maintaining copies beyond this period.
+
+4.8 **Unedited Files.** The Client acknowledges and agrees that unedited footage, RAW files, or unprocessed images are not included in the Services and will not be delivered to the Client. Delivery of unedited or RAW files will only occur if explicitly agreed upon in writing prior to the Session and is subject to additional fees.
+
+## 5. Artistic Release
+
+5.1 **Consistency.** Photographer will use reasonable efforts to ensure that the Services are produced in a style consistent with Photographer's current portfolio, and Photographer will use reasonable efforts to consult with Client and incorporate any reasonable suggestions.
+
+5.2 **Style.** Client acknowledges and agrees that:
+- Client has reviewed Photographer's previous work and portfolio and has a reasonable expectation that Photographer will perform the Services in a similar style
+- Photographer will use its artistic judgement when providing the Services, and shall have final say regarding the aesthetic judgement and artistic quality of the Services; and
+- Disagreement with Photographer's aesthetic judgement or artistic ability are not valid reasons for termination of this Agreement or request of any monies returned.
+
+## 6. Term and Termination
+
+6.1 **Term.** This Agreement will begin on the Effective Date and continue until the latter of (i) the date where all outstanding Fees under this Agreement are paid in full; or (ii) the date where all final Work Product has been delivered ("**Term**").
+
+6.2 **Cancellation.** Client may terminate the Agreement ("**Cancellation**") and/or reschedule the Services ("**Rescheduling**") by providing Photographer with written notice no later than 14 days before the original date of the Session (the "**Minimum Notice**"). Client acknowledges and agrees that Client is not relieved of any payment obligations for Cancellations and Rescheduling unless the Minimum Notice in accordance with this Article 6 is duly provided or unless the parties otherwise agree in writing.
+
+6.3 **Rescheduling.** In the event of Rescheduling, Photographer will use commercially reasonable efforts to accommodate Client's change. If Photographer is not able to accommodate Client's change despite using commercially reasonable efforts, the parties agree that such Rescheduling will be deemed as Cancellation by Client and that Photographer will be under no obligation to perform the Services other than on the original date of the Session.
+
+6.4 **No Refund.** Client acknowledges and agrees that Cancellation by Client will not result in a refund of any fees paid on or prior to the date of Cancellation by Client.
+
+6.5 **Replacement.** In the event that Photographer is unable to perform the Services, Photographer, subject to Client's consent, which is not to be reasonably withheld, shall cause a replacement photographer to perform the Services in accordance with the terms of this Agreement. In the event that such consent is not obtained, Photographer shall terminate this Agreement and shall return the Deposit and all fees paid by Client, and thereafter shall have no further liability to Client.
+
+## 7. Ownership of Work Product by Photographer
+
+7.1 **Ownership of Work.** Photographer will own all right, title and interest in all Work Product. Client (on behalf of itself and any attendees at the Session) hereby grants Photographer and any of its service providers an exclusive, royalty-free, worldwide, irrevocable, transferable and sublicensable license to use any materials created by Client or attendees, during the performance of the Services, that may be protected by copyright or any intellectual property rights ("**Session Materials**") as part of any Work Product or in connection with the marketing, advertising or promotion of Photographer's services, including in connection with Photographer's studio, portfolio, website or social media, in any format or medium. Client acknowledges and affirms that no other person or entity has any rights that may prevent or restrict Photographer from using Session Materials as provided herein.
+
+## 8. Limited License to Client
+
+8.1 **Personal Use.** Photographer hereby grants Client an exclusive, limited, irrevocable, royalty-free, non-transferable and non-sublicensable license to use Work Product for Client's Personal Use, provided that Client does not remove any attribution notices or copyright notices included by Photographer in any Work Product. "**Personal Use**" includes, but is not limited to, use (i) of photos on Client's personal social media pages or profiles; (ii) in Client's personal creations, such as scrapbooks, albums or personal gifts; (iii) in non-commercial physical display; and (iv) in personal communications, such as family newsletter, email, or holiday card. Client will not make any other use of the Work Product without Photographer's prior written consent, including but not limited to use of the Work Product for commercial sale.
+
+## 9. Indemnity and Limitation of Liability
+
+9.1 **Indemnification.** Client agrees to indemnify, defend and hold harmless Photographer and its affiliates, employees, agents and independent contractors for any injury, property damage, liability, claim or other cause of action arising out of or related to the Services and or Work Product Photographer provides to Client.
+
+9.2 **Force Majeure.** Neither party shall be held in breach of or liable under this Agreement for any delay or non-performance of any provision of this Agreement caused by illness, emergency, fire, strike, pandemic, earthquake, or any other conditions beyond the reasonable control of the non-performing party (each a "**Force Majeure Event**"), and the time of performance of such provision, if any, shall be deemed to be extended for a period equal to the duration of the conditions preventing performance. If such Force Majeure Event persists for more than 60 days, the party not affected by the Force Majeure Event may terminate the Agreement and any prepaid fees for Services not performed (other than the Deposit) shall be returned within 15 days of the date of termination of the Agreement.
+
+9.3 **Failure to Deliver.** Photographer shall not be held liable for delays in the delivery of such Work Product, or any Work Product undeliverable, due to technological malfunctions, service interruptions that are beyond the control of Photographer (including as a result of delays in receipt of instructions from Client) and for Work Product that fails to meet the specifications set out in Section 1.1 due to the actions of Client or attendees at the Session that are beyond the control of Photographer (e.g., camera flashes).
+
+9.4 **Maximum Liability.** Notwithstanding anything to the contrary, Client agrees that Photographer's maximum liability arising out of or related to the Services or the Work Product shall not exceed the total Fees payable under this Agreement.
+
+## 10. General
+
+10.1 **Notice.** Parties shall provide effective notice ("**Notice**") to each other via either of the following methods of delivery at the date and time which the Notice is sent:
+- Photographer's Email: {{business_email}}
+- Client's Email: {{client_email}}
+
+10.2 **Survival.** Articles 7, 8, 9 and 10 will survive termination of this Agreement.
+
+10.3 **Governing Law.** This Agreement will be governed by the laws of **Scotland.**
+
+10.4 **Amendment.** This Agreement may only be amended, supplemented or otherwise modified by written agreement signed by each of the parties.
+
+10.5 **Entire Agreement.** This Agreement constitutes the entire agreement between the parties with respect to the Services and supersedes all prior agreements and understandings both formal and informal.
+
+10.6 **Severability.** If any provision of this Agreement is determined to be illegal, invalid or unenforceable, in whole or in part, by an arbitrator or any court of competent jurisdiction, that provision or part thereof will be severed from this Agreement and the remaining part of such provision and all other provisions will continue in full force and effect.`;
 
 const DEFAULT_TEMPLATES = [
-  { name: "Wedding photography & film", body: `# Agreement
-
-This agreement is made on {{today}} between {{business_name}} ("the Photographer") and {{client_name}} ("the Client") for {{project_title}}.
-
-# The booking
-
-Date: {{event_date}}
-Location: {{location}}
-Package: {{package}}
-
-# Fee and payment
-
-The total fee is {{price}}. A non-refundable retainer of {{deposit}} secures the date and is due on signing. The remaining balance of {{balance}} is due before the wedding day, as set out on the invoice. The date is not reserved until the retainer has been received.
-
-# What you receive
-
-An edited online gallery of photographs and/or a film, as described in the package above, delivered within the timeframe agreed in writing. The Photographer decides the final selection and editing style.
-
-# Cancellation and rescheduling
-
-If the Client cancels, the retainer is not refunded. If the Client reschedules, the Photographer will move the booking to a new date if available; if not, the retainer is retained. If the Photographer cannot attend for a reason beyond their control, they will do their best to arrange a suitable replacement, or refund all payments made.
-
-# Copyright and usage
-
-The Photographer keeps the copyright to all images and films. The Client receives a personal licence to print, share and post them. The Photographer may use the images in their portfolio, website and social media, unless the Client asks in writing for particular images to stay private.
-
-# Liability
-
-The Photographer will take every reasonable care to keep all files safe. Liability is limited to the fee paid. The Photographer is not responsible for events outside their control, such as weather, venue restrictions or guest behaviour.
-
-# Agreement
-
-By signing below, both parties agree to these terms.` },
-  { name: "Pre-wedding / couple session", body: `# Photo session agreement
-
-This agreement is made on {{today}} between {{business_name}} ("the Photographer") and {{client_name}} ("the Client").
-
-# The session
-
-Session: {{project_title}}
-Date: {{event_date}}
-Location: {{location}}
-Package: {{package}}
-
-# Fee and payment
-
-The total fee is {{price}}. A deposit of {{deposit}} secures the date and is due on signing; the balance of {{balance}} is due on or before the session day.
-
-# Delivery
-
-The Client receives an online gallery of edited photographs after the session. Weather-dependent sessions can be moved once at no cost if agreed at least 48 hours in advance.
-
-# Copyright and usage
-
-The Photographer keeps the copyright. The Client may print, share and post the images for personal use. The Photographer may use the images in their portfolio and on social media.
-
-# Cancellation
-
-The deposit is non-refundable. If the Client cancels less than 48 hours before the session, the full fee is due.
-
-By signing below, both parties agree to these terms.` },
-  { name: "Proposal / engagement", body: `# Proposal photography agreement
-
-This agreement is made on {{today}} between {{business_name}} ("the Photographer") and {{client_name}} ("the Client").
-
-# The booking
-
-Occasion: {{project_title}}
-Date: {{event_date}}
-Location: {{location}}
-Package: {{package}}
-
-# Fee and payment
-
-The total fee is {{price}}. A deposit of {{deposit}} secures the booking and is due on signing; the balance of {{balance}} is due before the proposal day.
-
-# Discretion
-
-The Photographer will be discreet and follow the Client's plan so the surprise is protected. The Client will share the timing, location and how the Photographer should be introduced.
-
-# Delivery and usage
-
-Edited photographs are delivered in an online gallery. The Photographer keeps the copyright; the Client may print and share the images personally. The Photographer may use the images in their portfolio unless the Client asks otherwise in writing.
-
-# Cancellation
-
-The deposit is non-refundable. If the plan changes, the Photographer will rebook where possible.
-
-By signing below, both parties agree to these terms.` },
-  { name: "Elopement", body: `# Elopement photography agreement
-
-This agreement is made on {{today}} between {{business_name}} ("the Photographer") and {{client_name}} ("the Client").
-
-# The booking
-
-Date: {{event_date}}
-Location: {{location}}
-Package: {{package}}
-
-# Fee and payment
-
-The total fee is {{price}}. A non-refundable retainer of {{deposit}} secures the date; the balance of {{balance}} is due before the day. Travel and accommodation costs, if any, are agreed in writing.
-
-# Delivery, copyright and usage
-
-Edited photographs and/or film are delivered in an online gallery. The Photographer keeps the copyright; the Client may print and share them personally. The Photographer may use the images in their portfolio unless the Client asks otherwise in writing.
-
-# Cancellation and weather
-
-Weather changes are planned together, with a backup date or location where possible. If the Client cancels, the retainer is not refunded.
-
-By signing below, both parties agree to these terms.` },
+  { name: "Proposal", body: CONTRACT_BODY("proposal photoshoot") },
+  { name: "Wedding", body: CONTRACT_BODY("wedding") },
+  { name: "Pre-wedding", body: CONTRACT_BODY("pre-wedding photoshoot") },
+  { name: "Elopement", body: CONTRACT_BODY("elopement") },
+  { name: "Couple / engagement session", body: CONTRACT_BODY("photoshoot") },
 ];
 
 // ---------- sanitisers ----------
+function cleanStrokes(v) {
+  if (!Array.isArray(v)) return null;
+  let pts = 0;
+  const out = v.slice(0, 80).map((s) => (Array.isArray(s) ? s : []).slice(0, 2000).map((p) => [Math.min(1, Math.max(0, +p[0] || 0)), Math.min(1, Math.max(0, +p[1] || 0))])).filter((s) => { pts += s.length; return s.length && pts <= 12000; });
+  return out.length ? out : null;
+}
 function cleanClient(b) {
   return { name: line(b.name, 120), email: line(b.email, 160), email2: line(b.email2, 160), phone: line(b.phone, 40), notes: str(b.notes, 3000) };
 }
@@ -311,7 +364,8 @@ const STATUSES = ["enquiry", "proposal", "booked", "shot", "delivered", "complet
 function cleanProject(b) {
   return {
     clientId: line(b.clientId, 40), title: line(b.title, 160), type: line(b.type, 60), date: isDate(b.date) ? b.date : "",
-    location: line(b.location, 160), package: line(b.package, 160), price: money(b.price), deposit: money(b.deposit),
+    location: line(b.location, 160), time: line(b.time, 40), package: line(b.package, 160), price: money(b.price), deposit: money(b.deposit),
+    deliverables: str(b.deliverables, 2500), extras: str(b.extras, 1200), balanceDue: isDate(b.balanceDue) ? b.balanceDue : "",
     status: STATUSES.includes(b.status) ? b.status : "enquiry", galleryUrl: line(b.galleryUrl, 300), notes: str(b.notes, 3000),
   };
 }
@@ -336,7 +390,7 @@ function invStatus(inv) {
 
 // ---------- public pages ----------
 const CSS = `:root{color-scheme:light;--paper:#fbf9f6;--paper-2:#f1ece6;--ink:#1d1a19;--muted:#6f6863;--line:rgba(29,26,25,.12);--rose:#8c5a63;--rose-soft:#e9dcdc;--serif:"Instrument Serif","Cormorant Garamond",Georgia,serif;--sans:"Hanken Grotesk","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
-*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--rose)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
 header{border-bottom:1px solid var(--line);padding:16px 20px;text-align:center}.logo{font-family:var(--serif);font-size:30px;text-decoration:none;line-height:1;color:inherit}.logo em{color:var(--rose)}
 main{max-width:720px;margin:0 auto;padding:36px 20px 64px}h1{font-family:var(--serif);font-weight:400;font-size:clamp(38px,8vw,60px);line-height:1.05;margin:0 0 10px}h1 em{color:var(--rose)}
 h2{font-family:var(--serif);font-weight:400;font-size:28px;margin:36px 0 10px}h3{font-size:15px;margin:22px 0 4px}p{margin:0 0 12px}
@@ -357,11 +411,12 @@ function shell(title, inner, extraHead = "", settings) {
 const notFound = () => shell("Not found", `<h1>Link not <em>found</em></h1><p class="muted">This link doesn't match anything. Check the link in your email, or write to ${OWNER_EMAIL}.</p>`);
 const statusPill = (s) => `<span class="pill ${{ paid: "ok", signed: "ok", overdue: "bad", void: "bad" }[s] || (s === "draft" ? "" : "warn")}">${esc(s)}</span>`;
 
+const autolink = (t) => esc(t).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
 function paymentBlock(settings, inv) {
   const chosen = settings.methods.filter((m) => !inv.methods.length || inv.methods.includes(m.id));
   if (!chosen.length) return "";
   return `<h2>How to pay</h2><p class="muted">Please use <strong>${esc(inv.number)}</strong> as the payment reference.</p>` +
-    chosen.map((m) => `<div class="card"><strong>${esc(m.name)}</strong><p style="white-space:pre-wrap;margin:6px 0 0">${esc(m.instructions)}</p>${/^https?:\/\//.test(m.link || "") ? `<p style="margin:12px 0 0"><a class="btn" href="${esc(m.link)}" target="_blank" rel="noopener">Pay with ${esc(m.name)}</a></p>` : ""}</div>`).join("");
+    chosen.map((m) => `<div class="card"><strong>${esc(m.name)}</strong><p style="white-space:pre-wrap;margin:6px 0 0">${autolink(m.instructions)}</p>${/^https?:\/\//.test(m.link || "") ? `<p style="margin:12px 0 0"><a class="btn" href="${esc(m.link)}" target="_blank" rel="noopener">Pay with ${esc(m.name)}</a></p>` : ""}</div>`).join("");
 }
 function invoiceHtml(settings, client, project, inv, { forPortal = false } = {}) {
   const st = invStatus(inv);
@@ -382,23 +437,23 @@ ${forPortal ? "" : `<p class="noprint" style="margin-top:24px"><a class="btn gho
 
 async function contractPdf(env, settings, client, c) {
   const sig = c.signature;
+  const long = (iso) => niceDate(iso.slice(0, 10));
   const out = [
-    { t: "title", text: c.title },
-    { t: "small", text: `${settings.businessName} and ${client?.name || ""}  |  Document ${c.id}` },
-    { t: "gap", h: 8 },
+    { t: "header", brand: settings.businessName.toUpperCase(), sub: "CONTRACT", meta: [["Issue date", long(c.created)], ["Completion date", long(sig.at)]] },
+    { t: "doctitle", text: c.title },
+    { t: "fromto", from: settings.businessName, to: client?.name || "" },
     ...blocks(c.body),
-    { t: "gap", h: 14 },
-    { t: "h", text: "Signatures" },
-    { t: "sig", label: `Signed by the Client: ${sig.name}`, typed: sig.mode === "type" ? sig.name : "", strokes: sig.mode === "draw" ? sig.strokes : null,
-      caption: `${sig.name}  |  ${niceStamp(sig.at)}  |  IP ${sig.ip}` },
+    { t: "gap", h: 16 },
+    { t: "sigs", cols: [
+      ...(settings.signerName ? [{ label: `${settings.signerName}, ${settings.businessName}`, sub: `Signed on ${long(sig.at)}`, typed: settings.signerStrokes ? "" : settings.signerName, strokes: settings.signerStrokes }] : []),
+      { label: sig.name, sub: `Signed on ${long(sig.at)}`, typed: sig.mode === "type" ? sig.name : "", strokes: sig.mode === "draw" ? sig.strokes : null },
+    ] },
+    { t: "h", text: "Audit trail" },
   ];
-  if (settings.signerName) {
-    out.push({ t: "sig", label: `Signed for ${settings.businessName}: ${settings.signerName}`, typed: settings.signerName, caption: `${settings.signerName}  |  ${niceStamp(sig.at)}` });
-  }
-  out.push({ t: "h", text: "Audit trail" });
+  out.push({ t: "small", text: `Document ${c.id}  |  signed electronically by ${sig.name} on ${niceStamp(sig.at)}  |  IP ${sig.ip}` });
   for (const a of c.audit) out.push({ t: "small", text: `${niceStamp(a.t)}  |  ${a.e}  |  IP ${a.ip || "-"}${a.note ? "  |  " + a.note : ""}` });
-  out.push({ t: "gap", h: 4 }, { t: "small", text: `Document fingerprint (SHA-256 of title and text): ${c.hash}` },
-    { t: "small", text: `Signer agreed to sign electronically. Browser: ${sig.ua}` });
+  out.push({ t: "gap", h: 3 }, { t: "small", text: `Document fingerprint (SHA-256 of title and text): ${c.hash}` },
+    { t: "small", text: `The signer agreed to sign electronically. Browser: ${sig.ua}` });
   return buildPdf(out, { footer: `${c.title} | ${c.id} | ${c.hash.slice(0, 16)}` });
 }
 
@@ -470,9 +525,8 @@ async function handleSign(req, env, token, sub) {
     const mode = b.mode === "draw" ? "draw" : "type";
     let strokes = null;
     if (mode === "draw") {
-      let pts = 0;
-      strokes = (Array.isArray(b.strokes) ? b.strokes : []).slice(0, 80).map((s) => (Array.isArray(s) ? s : []).slice(0, 2000).map((p) => [Math.min(1, Math.max(0, +p[0] || 0)), Math.min(1, Math.max(0, +p[1] || 0))])).filter((s) => { pts += s.length; return s.length && pts <= 12000; });
-      if (!strokes.length) return json({ ok: false, error: "Please draw your signature." }, 400);
+      strokes = cleanStrokes(b.strokes);
+      if (!strokes) return json({ ok: false, error: "Please draw your signature." }, 400);
     }
     const at = new Date().toISOString();
     const ip = ipOf(req), ua = uaOf(req);
@@ -546,9 +600,10 @@ ${error ? `<p style="color:var(--rose)">${esc(error)}</p>` : ""}<button class="b
 }
 
 async function ensureDefaults(env) {
-  const o = await env.GALLERIES.head("studio/seeded");
+  const o = await env.GALLERIES.head("studio/seeded-v2");
   if (o) return;
-  await env.GALLERIES.put("studio/seeded", "1");
+  await env.GALLERIES.put("studio/seeded-v2", "1");
+  for (const old of await listAll(env, "template")) await env.GALLERIES.delete(key("template", old.id));
   for (const t of DEFAULT_TEMPLATES) await save(env, "template", { id: rid(), ...t, created: new Date().toISOString() });
 }
 
@@ -571,7 +626,7 @@ async function handleApi(req, env, path) {
     const s = {
       businessName: line(body.businessName, 80) || "pixelbystef", ownerName: line(body.ownerName, 80), email: validEmail(body.email) ? body.email : OWNER_EMAIL,
       fromEmail: validEmail(body.fromEmail) ? body.fromEmail : "studio@pixelbystef.com", currency: line(body.currency, 4) || "€",
-      address: str(body.address, 500), signerName: line(body.signerName, 80), emailFooter: str(body.emailFooter, 600), nextInvoice: Math.max(1, parseInt(body.nextInvoice) || settings.nextInvoice),
+      address: str(body.address, 500), signerName: line(body.signerName, 80), signerStrokes: cleanStrokes(body.signerStrokes), emailFooter: str(body.emailFooter, 600), nextInvoice: Math.max(1, parseInt(body.nextInvoice) || settings.nextInvoice),
       methods: (Array.isArray(body.methods) ? body.methods : []).slice(0, 12).map((m) => ({ id: /^[\w-]{3,40}$/.test(m.id || "") ? m.id : rid(8), name: line(m.name, 60), instructions: str(m.instructions, 800), link: line(m.link, 300) })).filter((m) => m.name),
     };
     await putSettings(env, s);
@@ -644,7 +699,7 @@ async function handleApi(req, env, path) {
   if (path === "render" && req.method === "POST") {
     const [tpl, client, project] = await Promise.all([load(env, "template", body.templateId), load(env, "client", body.clientId), load(env, "project", body.projectId)]);
     if (!tpl || !client) return json({ error: "Template and client are required" }, 400);
-    return json({ ok: true, title: `${tpl.name}${project ? " · " + project.title : ""}`, body: fill(tpl.body, fields(settings, client, project)) });
+    return json({ ok: true, title: `${client.name} Contract`, body: fill(tpl.body, fields(settings, client, project)) });
   }
 
   // Contract actions
@@ -716,6 +771,15 @@ async function handleApi(req, env, path) {
     }
   }
 
+  if (path === "export-info") {
+    const url2 = `${origin}/studio/export/payments.csv?t=${await exportToken(env)}`;
+    return json({ url: url2, formula: `=IMPORTDATA("${url2}")` });
+  }
+  if (path === "export-info/regenerate" && req.method === "POST") {
+    const url2 = `${origin}/studio/export/payments.csv?t=${await exportToken(env, true)}`;
+    return json({ url: url2, formula: `=IMPORTDATA("${url2}")` });
+  }
+
   // Send the portal link
   if (type === "client" && id && action === "portal" && req.method === "POST") {
     const client = await load(env, "client", id);
@@ -730,9 +794,38 @@ async function handleApi(req, env, path) {
   return json({ error: "Unknown route" }, 404);
 }
 
+// ---------- cashflow export for Google Sheets: =IMPORTDATA("<url>") ----------
+async function exportToken(env, regenerate) {
+  const o = regenerate ? null : await env.GALLERIES.get("studio/export-token");
+  if (o) return (await o.text()).trim();
+  const t = rid(32);
+  await env.GALLERIES.put("studio/export-token", t);
+  return t;
+}
+const csvCell = (v) => { v = String(v ?? ""); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+async function paymentsCsv(env) {
+  const [settings, clients, projects, invoices] = await Promise.all([getSettings(env), listAll(env, "client"), listAll(env, "project"), listAll(env, "invoice")]);
+  const cl = Object.fromEntries(clients.map((c) => [c.id, c])), pr = Object.fromEntries(projects.map((p) => [p.id, p]));
+  const rows = [["Invoice", "Client", "Project", "Project date", "Payment", "Due date", "Due month", "Amount", "Currency", "Status", "Paid date", "Invoice total", "Issued"]];
+  for (const inv of invoices.sort((a, b) => (a.number || "").localeCompare(b.number || ""))) {
+    const total = invTotal(inv);
+    for (const part of inv.parts) {
+      const status = part.paid ? "paid" : !inv.published ? "draft" : part.due && part.due < today() ? "overdue" : "unpaid";
+      rows.push([inv.number, cl[inv.clientId]?.name, pr[inv.projectId]?.title, pr[inv.projectId]?.date, part.label, part.due, (part.due || "").slice(0, 7), part.amount, settings.currency, status, part.paidAt, total, inv.issued]);
+    }
+  }
+  return rows.map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
+}
+
 export async function handleStudio(req, env) {
   const url = new URL(req.url);
   const p = url.pathname;
+
+  if (p === "/studio/export/payments.csv") {
+    const t = url.searchParams.get("t") || "";
+    if (!t || !safeEq(t, await exportToken(env))) return respond("Not found", 404, "text/plain");
+    return respond(await paymentsCsv(env), 200, "text/csv; charset=utf-8");
+  }
 
   let m;
   if ((m = p.match(/^\/sign\/([a-f0-9]{32})(?:\/(pdf|submit))?\/?$/))) return handleSign(req, env, m[1], m[2] || "");

@@ -1,15 +1,19 @@
 // Minimal PDF writer for signed contracts (A4, built-in Helvetica / Times fonts, no dependencies).
 //
 // buildPdf(blocks, { footer }) -> Uint8Array
-// Block types:
-//   { t: "title", text }      big heading
-//   { t: "h", text }          section heading
-//   { t: "p", text }          paragraph (wrapped)
-//   { t: "small", text }      small grey paragraph
-//   { t: "gap", h }           vertical space
-//   { t: "sig", label, typed, strokes, caption }   signature box (typed name or drawn strokes [[ [x,y]... ]] in 0..1)
+// Text may contain **bold** runs. Block types:
+//   { t: "header", brand, sub, meta: [[label, value], ...] }   top of page 1: brand left, dates right
+//   { t: "doctitle", text }      large document name
+//   { t: "fromto", from, to }    two columns
+//   { t: "title", text }         centred bold agreement title
+//   { t: "h", text }             numbered section heading
+//   { t: "p", text }             paragraph (wrapped, **bold** supported)
+//   { t: "bullets", items }      bullet list
+//   { t: "small", text }         small grey text
+//   { t: "gap", h }              vertical space
+//   { t: "sigs", cols: [{ label, typed, strokes, sub }, ...] }   signatures side by side; strokes = [[ [x,y]... ]] in 0..1
 
-const W = 595, H = 842, MX = 56, MT = 64, MB = 64;
+const W = 595, H = 842, MX = 50, MT = 56, MB = 64;
 const WIDTHS = [
   278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,
   556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,
@@ -29,18 +33,38 @@ const width = (s, size, bold) => { let w = 0; for (const c of s) w += cw(c); ret
 const esc = (s) => s.replace(/[\\()]/g, "\\$&");
 const num = (n) => (Math.round(n * 100) / 100).toString();
 
-function wrap(text, size, bold, maxW) {
+// "a **b** c" -> words [{w, b, sp}] where sp = whitespace before the word
+function tokens(text) {
   const out = [];
-  for (const para of winAnsi(text).split("\n")) {
-    if (!para.trim()) { out.push(""); continue; }
-    let line = "";
-    for (const word of para.split(" ")) {
-      const t = line ? line + " " + word : word;
-      if (line && width(t, size, bold) > maxW) { out.push(line); line = word; } else line = t;
+  let pending = false;
+  winAnsi(text).split(/(\*\*[^*]+\*\*)/).forEach((part) => {
+    const bold = part.length > 4 && part.startsWith("**") && part.endsWith("**");
+    for (const w of (bold ? part.slice(2, -2) : part).split(/(\s+)/)) {
+      if (!w) continue;
+      if (/^\s+$/.test(w)) pending = true;
+      else { out.push({ w, b: bold, sp: pending && out.length > 0 }); pending = false; }
     }
-    out.push(line);
-  }
+  });
   return out;
+}
+// Lines of runs [{t, b}] fitting maxW.
+function wrap(text, size, maxW) {
+  const lines = [];
+  const spW = width(" ", size);
+  for (const para of String(text).split("\n")) {
+    if (!para.trim()) { lines.push([]); continue; }
+    let cur = [], w = 0;
+    for (const tk of tokens(para)) {
+      const tw = width(tk.w, size, tk.b);
+      const gap = cur.length && tk.sp ? spW : 0;
+      if (cur.length && w + gap + tw > maxW) { lines.push(cur); cur = []; w = 0; }
+      const lead = cur.length && tk.sp ? " " : "";
+      cur.push({ t: lead + tk.w, b: tk.b });
+      w += (lead ? spW : 0) + tw;
+    }
+    lines.push(cur);
+  }
+  return lines;
 }
 
 export function buildPdf(blocks, { footer = "" } = {}) {
@@ -50,57 +74,102 @@ export function buildPdf(blocks, { footer = "" } = {}) {
   const newPage = () => { pages.push([]); y = H - MT; };
   const need = (h) => { if (y - h < MB) newPage(); };
   const text = (x, yy, s, font, size, gray = 0.1) =>
-    cur().push(`BT ${num(gray)} g /${font} ${size} Tf ${num(x)} ${num(yy)} Td (${esc(s)}) Tj ET`);
-
-  const para = (s, size, bold, gray, lead, after) => {
-    for (const line of wrap(s, size, bold, W - 2 * MX)) {
-      need(lead);
-      y -= lead;
-      if (line) text(MX, y, line, bold ? "F2" : "F1", size, gray);
+    cur().push(`BT ${num(gray)} g /${font} ${size} Tf ${num(x)} ${num(yy)} Td (${esc(winAnsi(s))}) Tj ET`);
+  const runsAt = (x, yy, runs, size, gray) => {
+    if (!runs.length) return;
+    const ops = [`BT ${num(gray)} g ${num(x)} ${num(yy)} Td`];
+    let font = "";
+    for (const r of runs) {
+      const f = r.b ? "F2" : "F1";
+      if (f !== font) { ops.push(`/${f} ${size} Tf`); font = f; }
+      ops.push(`(${esc(r.t)}) Tj`);
     }
+    ops.push("ET");
+    cur().push(ops.join(" "));
+  };
+  const para = (s, size, gray, lead, after, x = MX, maxW = W - 2 * MX) => {
+    for (const ln of wrap(s, size, maxW)) { need(lead); y -= lead; runsAt(x, y, ln, size, gray); }
     y -= after;
+  };
+  const strokesAt = (strokes, bx, by, bw, bh) => {
+    const ops = ["0.1 G 1.6 w 1 J 1 j"];
+    for (const st of strokes) {
+      if (!st.length) continue;
+      const pt = ([px, py]) => `${num(bx + 4 + px * (bw - 8))} ${num(by + (1 - py) * (bh - 8) + 4)}`;
+      ops.push(`${pt(st[0])} m`);
+      if (st.length === 1) ops.push(`${pt([st[0][0] + 0.002, st[0][1]])} l`);
+      for (const p of st.slice(1)) ops.push(`${pt(p)} l`);
+      ops.push("S");
+    }
+    cur().push(ops.join("\n"));
   };
 
   for (const b of blocks) {
-    if (b.t === "title") { para(b.text, 22, true, 0.1, 28, 10); }
-    else if (b.t === "h") { need(50); y -= 8; para(b.text, 12.5, true, 0.1, 17, 3); }
-    else if (b.t === "p") para(b.text, 10.5, false, 0.15, 15, 6);
-    else if (b.t === "small") para(b.text, 8.5, false, 0.4, 12, 3);
-    else if (b.t === "gap") y -= b.h || 10;
-    else if (b.t === "sig") {
-      need(120);
-      para(b.label || "Signature", 9, true, 0.4, 13, 4);
-      const bx = MX, bw = 240, bh = 70;
-      y -= bh;
-      if (b.typed) {
-        text(bx + 6, y + 22, winAnsi(b.typed), "F3", 28, 0.1);
-      } else if (b.strokes) {
-        const ops = ["0.1 G 1.6 w 1 J 1 j"];
-        for (const st of b.strokes) {
-          if (!st.length) continue;
-          const pt = ([px, py]) => `${num(bx + 6 + px * (bw - 12))} ${num(y + (1 - py) * (bh - 8) + 4)}`;
-          ops.push(`${pt(st[0])} m`);
-          if (st.length === 1) ops.push(`${pt([st[0][0] + 0.002, st[0][1]])} l`);
-          for (const p of st.slice(1)) ops.push(`${pt(p)} l`);
-          ops.push("S");
-        }
-        cur().push(ops.join("\n"));
+    if (b.t === "header") {
+      const top = y;
+      text(MX, y - 12, winAnsi(b.brand), "F1", 17, 0.15);
+      text(MX, y - 34, winAnsi(b.sub), "F1", 15, 0.5);
+      let ry = top - 8;
+      for (const [k, v] of b.meta || []) {
+        text(MX + 300, ry, k, "F1", 8.5, 0.5);
+        const lines = wrap(v, 8.5, 130);
+        lines.forEach((ln, i) => runsAt(W - MX - 130, ry - i * 11, ln, 8.5, 0.2));
+        ry -= 12 + (lines.length - 1) * 11 + 6;
       }
-      cur().push(`0.6 G 0.6 w ${num(bx)} ${num(y)} m ${num(bx + bw)} ${num(y)} l S`);
-      y -= 4;
-      if (b.caption) para(b.caption, 8.5, false, 0.4, 12, 6);
+      y = Math.min(top - 46, ry) - 26;
+    }
+    else if (b.t === "doctitle") { need(40); y -= 22; text(MX, y, b.text, "F1", 19, 0.15); y -= 26; }
+    else if (b.t === "fromto") {
+      need(60);
+      text(MX, y - 4, "From", "F1", 8.5, 0.5); text(MX + 125, y - 4, "To", "F1", 8.5, 0.5);
+      text(MX, y - 26, b.from, "F1", 9, 0.15); text(MX + 125, y - 26, b.to, "F1", 9, 0.15);
+      y -= 56;
+    }
+    else if (b.t === "title") { need(50); y -= 14; const t = winAnsi(b.text); text((W - width(t, 17, true)) / 2, y - 14, t, "F2", 17, 0.15); y -= 34; }
+    else if (b.t === "h") { need(60); y -= 10; para("**" + b.text.replace(/\*/g, "") + "**", 14, 0.15, 19, 4); }
+    else if (b.t === "p") para(b.text, 9.2, 0.2, 12.6, 6);
+    else if (b.t === "bullets") {
+      for (const it of b.items) {
+        const lines = wrap(it, 9.2, W - 2 * MX - 28);
+        lines.forEach((ln, i) => {
+          need(12.6); y -= 12.6;
+          if (i === 0) cur().push(`0.2 g ${num(MX + 14)} ${num(y + 1.6)} 3 3 re f`);
+          runsAt(MX + 26, y, ln, 9.2, 0.2);
+        });
+      }
+      y -= 6;
+    }
+    else if (b.t === "small") para(b.text, 8, 0.4, 11, 2);
+    else if (b.t === "gap") y -= b.h || 10;
+    else if (b.t === "sigs") {
+      need(150);
+      text(MX, y - 4, "Signatures", "F1", 11, 0.15);
+      y -= 12;
+      const colW = (W - 2 * MX) / 2;
+      const boxH = 62;
+      const top = y;
+      b.cols.forEach((c, i) => {
+        const x = MX + i * colW;
+        const by = top - boxH - 8;
+        if (c.typed) text(x + 6, by + 20, winAnsi(c.typed), "F3", 26, 0.1);
+        else if (c.strokes) strokesAt(c.strokes, x, by, colW - 30, boxH);
+        cur().push(`0.75 G 0.6 w ${num(x)} ${num(by)} m ${num(x + colW - 24)} ${num(by)} l S`);
+        text(x, by - 13, c.label, "F1", 8.5, 0.15);
+        if (c.sub) text(x, by - 25, c.sub, "F1", 8.5, 0.5);
+      });
+      y = top - boxH - 8 - 36;
     }
   }
 
   // Footer with page numbers.
   pages.forEach((ops, i) => {
-    ops.push(`0.6 G 0.5 w ${MX} 46 m ${W - MX} 46 l S`);
-    ops.push(`BT 0.45 g /F1 8 Tf ${MX} 32 Td (${esc(winAnsi(footer).slice(0, 110))}) Tj ET`);
+    ops.push(`0.8 G 0.5 w ${MX} 46 m ${W - MX} 46 l S`);
+    ops.push(`BT 0.5 g /F1 7.5 Tf ${MX} 32 Td (${esc(winAnsi(footer).slice(0, 110))}) Tj ET`);
     const pn = `Page ${i + 1} of ${pages.length}`;
-    ops.push(`BT 0.45 g /F1 8 Tf ${num(W - MX - width(pn, 8))} 32 Td (${pn}) Tj ET`);
+    ops.push(`BT 0.5 g /F1 7.5 Tf ${num(W - MX - width(pn, 7.5))} 32 Td (${pn}) Tj ET`);
   });
 
-  // Assemble objects: 1 catalog, 2 pages, 3-5 fonts, then page/content pairs.
+  // Objects: 1 catalog, 2 pages, 3-5 fonts, then page/content pairs.
   const objs = [];
   objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
   const kids = pages.map((_, i) => `${6 + i * 2} 0 R`).join(" ");
