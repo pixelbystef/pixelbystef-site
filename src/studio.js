@@ -16,6 +16,8 @@ import { DEFAULT_SIGNATURE } from "./studio-signature.js";
 const enc = new TextEncoder();
 const OWNER_EMAIL = "pixelbystef@gmail.com";
 const NOINDEX = { "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "same-origin" };
+// SHA-256 of the studio sign-in key (a simple key on purpose; the lockout below limits guessing).
+const STUDIO_LOGIN_HASH = "5d2d5d898237b2e1bd08bfe1e8f8a30d6ba3e5bbf0a7fecd28249a201039566c";
 const TYPES = ["client", "project", "template", "contract", "invoice"];
 
 // ---------- small helpers ----------
@@ -936,7 +938,7 @@ export async function handleStudio(req, env) {
     const lock = await env.GALLERIES.get(lockKey).then((o) => (o ? o.json() : { n: 0, until: 0 })).catch(() => ({ n: 0, until: 0 }));
     if (lock.until > Date.now()) return loginPage(`Too many attempts. Try again in ${Math.ceil((lock.until - Date.now()) / 60000)} minutes.`);
     // STUDIO_KEY_HASH (a Cloudflare secret, SHA-256 of the studio key) is the studio's own key; the gallery admin key also works.
-    const hashes = [env.STUDIO_KEY_HASH, env.GALLERY_ADMIN_HASH].filter(Boolean);
+    const hashes = [STUDIO_LOGIN_HASH, env.STUDIO_KEY_HASH, env.GALLERY_ADMIN_HASH].filter(Boolean);
     const gotHash = given ? await sha256(given) : "";
     // A key set from Settings is stored (salted) in the private bucket, not in the code.
     const own = await env.GALLERIES.get("studio/_config/key.json").then((o) => (o ? o.json() : null)).catch(() => null);
