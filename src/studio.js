@@ -16,6 +16,8 @@ import { DEFAULT_SIGNATURE } from "./studio-signature.js";
 const enc = new TextEncoder();
 const OWNER_EMAIL = "pixelbystef@gmail.com";
 const NOINDEX = { "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "same-origin" };
+// SHA-256 of the studio sign-in key (a simple key on purpose; the lockout below limits guessing).
+const STUDIO_LOGIN_HASH = "5d2d5d898237b2e1bd08bfe1e8f8a30d6ba3e5bbf0a7fecd28249a201039566c";
 const TYPES = ["client", "project", "template", "contract", "invoice"];
 
 // ---------- small helpers ----------
@@ -860,6 +862,13 @@ async function handleApi(req, env, path) {
     }
   }
 
+  if (path === "studio-key" && req.method === "POST") {
+    const k = String(body.key || "");
+    if (k.length < 8) return json({ error: "Use at least 8 characters" }, 400);
+    const salt = rid(16);
+    await env.GALLERIES.put("studio/_config/key.json", JSON.stringify({ salt, hash: await sha256(salt + k) }));
+    return json({ ok: true });
+  }
   if (path === "export-info") {
     const url2 = `${origin}/studio/export/payments.csv?t=${await exportToken(env)}`;
     return json({ url: url2, formula: `=IMPORTDATA("${url2}")` });
@@ -924,7 +933,23 @@ export async function handleStudio(req, env) {
   if (p === "/studio/login" && req.method === "POST") {
     const form = await req.formData().catch(() => null);
     const given = String(form?.get("key") || "");
-    if (!given || !env.GALLERY_ADMIN_HASH || !safeEq(await sha256(given), env.GALLERY_ADMIN_HASH)) return loginPage("That key isn't right.");
+    // Too many wrong guesses from one address: lock it out for 15 minutes (this protects short, easy keys).
+    const lockKey = `studio/_login/${await sha256(ipOf(req))}`;
+    const lock = await env.GALLERIES.get(lockKey).then((o) => (o ? o.json() : { n: 0, until: 0 })).catch(() => ({ n: 0, until: 0 }));
+    if (lock.until > Date.now()) return loginPage(`Too many attempts. Try again in ${Math.ceil((lock.until - Date.now()) / 60000)} minutes.`);
+    // STUDIO_KEY_HASH (a Cloudflare secret, SHA-256 of the studio key) is the studio's own key; the gallery admin key also works.
+    const hashes = [STUDIO_LOGIN_HASH, env.STUDIO_KEY_HASH, env.GALLERY_ADMIN_HASH].filter(Boolean);
+    const gotHash = given ? await sha256(given) : "";
+    // A key set from Settings is stored (salted) in the private bucket, not in the code.
+    const own = await env.GALLERIES.get("studio/_config/key.json").then((o) => (o ? o.json() : null)).catch(() => null);
+    const ownOk = !!(own && given && safeEq(await sha256(own.salt + given), own.hash));
+    if (!ownOk && (!gotHash || !hashes.some((h) => safeEq(gotHash, h)))) {
+      lock.n += 1;
+      if (lock.n >= 5) { lock.until = Date.now() + 15 * 60000; lock.n = 0; }
+      await env.GALLERIES.put(lockKey, JSON.stringify(lock)).catch(() => {});
+      return loginPage("That key isn't right.");
+    }
+    if (lock.n) await env.GALLERIES.delete(lockKey).catch(() => {});
     const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 14;
     return new Response(null, { status: 303, headers: { Location: "/studio", "Set-Cookie": `pbs_studio=${exp}.${await hmac(env, `studio|${exp}`)}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=Strict`, "Cache-Control": "no-store" } });
   }

@@ -8,6 +8,6 @@ Static site served by a Cloudflare Worker (`pixelbystef-site`). Pushing to `main
 
 ## Studio manager (`/studio`)
 
-Private admin at `pixelbystef.com/studio` (sign in with the gallery admin key): clients, projects, contract templates, e-signed contracts (PDF + audit trail), invoices with deposit/balance and payment instructions, and a private page per client (`/c/<token>`). Code: `src/studio.js`, `src/studio-admin.html`, `src/studio-pdf.js`. Data is stored in the same R2 bucket under `studio/`.
+Private admin at `pixelbystef.com/studio` (sign in with the studio key set under Settings, or the gallery admin key; 5 wrong tries lock an address out for 15 minutes): clients, projects, contract templates, e-signed contracts (PDF + audit trail), invoices with deposit/balance and payment instructions, and a private page per client (`/c/<token>`). Code: `src/studio.js`, `src/studio-admin.html`, `src/studio-pdf.js`. Data is stored in the same R2 bucket under `studio/`.
 
 Emailing clients uses the `MAILER` send_email binding, which needs Cloudflare Email Sending enabled for pixelbystef.com. If email fails, the app shows the link so it can be sent by hand.
