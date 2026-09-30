@@ -153,8 +153,8 @@ ${rows.map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#6f6863">${e
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    // One address for everyone (and Google): www. and new. go to pixelbystef.com.
-    if (url.hostname !== CANONICAL_HOST && url.hostname.endsWith("pixelbystef.com")) {
+    // One address for everyone (and Google): www. and new. go to pixelbystef.com. Preview hosts (<branch>.new.pixelbystef.com) are left alone.
+    if (url.hostname === "www." + CANONICAL_HOST || url.hostname === "new." + CANONICAL_HOST) {
       url.hostname = CANONICAL_HOST;
       url.protocol = "https:";
       return Response.redirect(url.toString(), 301);
