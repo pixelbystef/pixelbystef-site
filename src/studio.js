@@ -11,6 +11,7 @@
 
 import ADMIN from "./studio-admin.html";
 import { buildPdf } from "./studio-pdf.js";
+import { DEFAULT_SIGNATURE } from "./studio-signature.js";
 
 const enc = new TextEncoder();
 const OWNER_EMAIL = "pixelbystef@gmail.com";
@@ -193,7 +194,7 @@ function fields(settings, client, project) {
     project_title: project?.title || "", project_type: project?.type || "", event_date: niceDate(project?.date), location: project?.location || "",
     session_date: slashDate(project?.date), session_time: project?.time || "", package: project?.package || "",
     deliverables_list: lines(project?.deliverables).map((l) => "- **" + l + "**").join("\n"),
-    extras_list: lines(project?.extras).map((l) => "- " + l).join("\n"),
+    extras_list: lines(project?.extras).map((l) => "  - " + l).join("\n"),
     price: price ? fmt(price, cur, true) : "", deposit: deposit ? fmt(deposit, cur, true) : "",
     balance: price ? fmt(price - deposit, cur, true) : "", balance_due_date: slashDate(project?.balanceDue || project?.date),
     today: niceDate(today()),
@@ -211,7 +212,7 @@ function blocks(body) {
     for (const ln of chunk.trim().split("\n")) {
       if (/^# /.test(ln)) { flushP(); flushB(); out.push({ t: "title", text: ln.slice(2) }); }
       else if (/^## /.test(ln)) { flushP(); flushB(); out.push({ t: "h", text: ln.slice(3) }); }
-      else if (/^- /.test(ln)) { flushP(); items.push(ln.slice(2)); }
+      else if (/^\s*- /.test(ln)) { flushP(); items.push({ text: ln.replace(/^\s*- /, ""), level: /^\s{2,}/.test(ln) ? 1 : 0 }); }
       else if (ln.trim()) { flushB(); para.push(ln); }
     }
     flushP(); flushB();
@@ -222,7 +223,7 @@ const inline = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 const bodyHtml = (body) => blocks(body).map((b) =>
   b.t === "title" ? `<h2 style="text-align:center;margin-top:8px">${inline(b.text)}</h2>` :
   b.t === "h" ? `<h3 style="font-size:19px;margin-top:26px">${inline(b.text)}</h3>` :
-  b.t === "bullets" ? `<ul>${b.items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>` :
+  b.t === "bullets" ? `<ul>${b.items.map((i) => `<li${i.level ? ' style="margin-left:26px;list-style:circle"' : ""}>${inline(i.text)}</li>`).join("")}</ul>` :
   `<p>${inline(b.text).replace(/\n/g, "<br>")}</p>`).join("\n");
 
 // One layout for every kind of shoot; only the wording of the Session changes.
@@ -248,6 +249,7 @@ As part of the Services, the Photographer will produce or take similar action to
 
 2.1 **Fees.** Client will pay Photographer the fees set out herein in this Section 2.1 ("**Fees**"), including any applicable federal or state/provincial sales or value-added taxes due on such Fees.
 - Total Fee for Services: **{{price}}**
+- Additional Pricing:
 {{extras_list}}
 - Deposit due upon signing: **{{deposit}}**
 - Remaining amount due on **{{balance_due_date}}**: **{{balance}}** + remaining additional pricing
@@ -388,6 +390,36 @@ function invStatus(inv) {
   return { total, paid, outstanding: money(total - paid), status: !inv.published ? "draft" : total > 0 && paid >= total ? "paid" : overdue ? "overdue" : paid > 0 ? "part-paid" : "unpaid" };
 }
 
+// ---------- invoices made by the app ----------
+async function createInvoice(env, { clientId, projectId, contractId, desc, label, amount, due, notes }) {
+  const s = await getSettings(env);
+  const id = rid();
+  const inv = {
+    id, created: new Date().toISOString(), clientId, projectId, contractId, issued: today(), methods: [], published: false, notes: notes || "",
+    items: [{ desc, qty: 1, amount }], parts: [{ label, amount, due, paid: false, paidAt: "" }],
+    number: "INV-" + String(s.nextInvoice).padStart(4, "0"),
+  };
+  await putSettings(env, { ...s, nextInvoice: s.nextInvoice + 1 });
+  inv.token = await newToken(env, "invoice", id);
+  return save(env, "invoice", inv);
+}
+// Makes the invoice visible to the client and emails it. Returns { emailed, emailError, link }.
+async function publishAndSendInvoice(env, settings, client, inv, origin) {
+  inv.published = true;
+  inv.sentAt = new Date().toISOString();
+  const link = `${origin}/i/${inv.token}`;
+  let emailed = false, emailError = "";
+  try {
+    const st = invStatus(inv);
+    const next = inv.parts.find((p) => !p.paid);
+    await sendMail(env, settings, { to: clientEmails(client), subject: `Invoice ${inv.number}`, heading: `Invoice ${inv.number}`,
+      paras: [`Hi ${client.name.split(/\s+/)[0]},`, `Your invoice for ${fmt(st.total, settings.currency)} is ready.${next ? ` ${next.label}: ${fmt(next.amount, settings.currency)}${next.due ? ", due " + niceDate(next.due) : ""}.` : ""}`, "You'll find the ways to pay on the invoice page."], button: { label: "View invoice", url: link } });
+    emailed = true;
+  } catch (e) { emailError = String(e.message || e); }
+  await save(env, "invoice", inv);
+  return { emailed, emailError, link };
+}
+
 // ---------- public pages ----------
 const CSS = `:root{color-scheme:light;--paper:#fbf9f6;--paper-2:#f1ece6;--ink:#1d1a19;--muted:#6f6863;--line:rgba(29,26,25,.12);--rose:#8c5a63;--rose-soft:#e9dcdc;--serif:"Instrument Serif","Cormorant Garamond",Georgia,serif;--sans:"Hanken Grotesk","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 a{color:var(--rose)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
@@ -445,7 +477,7 @@ async function contractPdf(env, settings, client, c) {
     ...blocks(c.body),
     { t: "gap", h: 16 },
     { t: "sigs", cols: [
-      ...(settings.signerName ? [{ label: `${settings.signerName}, ${settings.businessName}`, sub: `Signed on ${long(sig.at)}`, typed: settings.signerStrokes ? "" : settings.signerName, strokes: settings.signerStrokes }] : []),
+      ...(settings.signerName || settings.signerStrokes ? [{ label: `${settings.signerName}, ${settings.businessName}`, sub: `Signed on ${long(sig.at)}`, strokes: settings.signerStrokes, image: settings.signerStrokes ? null : DEFAULT_SIGNATURE }] : []),
       { label: sig.name, sub: `Signed on ${long(sig.at)}`, typed: sig.mode === "type" ? sig.name : "", strokes: sig.mode === "draw" ? sig.strokes : null },
     ] },
     { t: "h", text: "Audit trail" },
@@ -547,6 +579,15 @@ async function handleSign(req, env, token, sub) {
     }
     mails.push(sendMail(env, settings, { to: settings.email, subject: `Signed: ${c.title} · ${client?.name || ""}`, heading: "Contract signed",
       paras: [`${name} signed "${c.title}" on ${niceStamp(at)} (IP ${ip}).`, "The signed PDF with the audit trail is stored in the studio."], button: { label: "Open client page", url: portal } }));
+    // The deposit invoice goes out as soon as the contract is signed.
+    if (c.depositInvoiceId && client) {
+      const inv = await load(env, "invoice", c.depositInvoiceId);
+      if (inv && !inv.published) {
+        const r = await publishAndSendInvoice(env, settings, client, inv, new URL(req.url).origin);
+        c.audit.push({ t: new Date().toISOString(), e: "deposit invoice", ip: "-", note: `${inv.number} ${r.emailed ? "emailed to client" : "made available (email failed: " + r.emailError + ")"}` });
+        await save(env, "contract", c);
+      }
+    }
     const results = await Promise.allSettled(mails);
     results.forEach((r) => r.status === "rejected" && console.error("signed mail failed", r.reason && r.reason.message));
     return json({ ok: true });
@@ -600,9 +641,9 @@ ${error ? `<p style="color:var(--rose)">${esc(error)}</p>` : ""}<button class="b
 }
 
 async function ensureDefaults(env) {
-  const o = await env.GALLERIES.head("studio/seeded-v2");
+  const o = await env.GALLERIES.head("studio/seeded-v3");
   if (o) return;
-  await env.GALLERIES.put("studio/seeded-v2", "1");
+  await env.GALLERIES.put("studio/seeded-v3", "1");
   for (const old of await listAll(env, "template")) await env.GALLERIES.delete(key("template", old.id));
   for (const t of DEFAULT_TEMPLATES) await save(env, "template", { id: rid(), ...t, created: new Date().toISOString() });
 }
@@ -679,8 +720,26 @@ async function handleApi(req, env, path) {
         await putSettings(env, { ...s, nextInvoice: s.nextInvoice + 1 });
       }
     }
+    let made = [];
+    if (type === "contract" && !existing && body.autoInvoices && obj.projectId) {
+      const proj = await load(env, "project", obj.projectId);
+      const price = money(proj?.price), dep = money(proj?.deposit);
+      if (proj && price > 0) {
+        const due = proj.balanceDue || proj.date;
+        if (dep > 0 && dep < price) {
+          const d = await createInvoice(env, { clientId: obj.clientId, projectId: proj.id, contractId: obj.id, desc: `Deposit: ${proj.title}`, label: "Deposit", amount: dep, due: today(),
+            notes: "This deposit secures your date and is non-refundable. It is credited towards your total fee." });
+          const b = await createInvoice(env, { clientId: obj.clientId, projectId: proj.id, contractId: obj.id, desc: `Remaining balance: ${proj.title}`, label: "Balance", amount: money(price - dep), due,
+            notes: "Any additional pricing used (for example extra hours or a RAW gallery) is added to this balance." });
+          obj.depositInvoiceId = d.id; obj.balanceInvoiceId = b.id; made = [d, b];
+        } else {
+          const b = await createInvoice(env, { clientId: obj.clientId, projectId: proj.id, contractId: obj.id, desc: proj.title, label: "Payment in full", amount: price, due: due || today() });
+          obj.balanceInvoiceId = b.id; made = [b];
+        }
+      }
+    }
     await save(env, type, obj);
-    return json({ ok: true, item: type === "invoice" ? { ...obj, ...invStatus(obj) } : obj });
+    return json({ ok: true, invoices: made.map((i) => i.number), item: type === "invoice" ? { ...obj, ...invStatus(obj) } : obj });
   }
   if (TYPES.includes(type) && req.method === "DELETE" && id) {
     const existing = await load(env, type, id);
@@ -689,6 +748,12 @@ async function handleApi(req, env, path) {
     if (type === "client") {
       const [ps, cs, is] = await Promise.all([listAll(env, "project"), listAll(env, "contract"), listAll(env, "invoice")]);
       if ([...ps, ...cs, ...is].some((x) => x.clientId === id)) return json({ error: "Delete this client's projects, contracts and invoices first." }, 409);
+    }
+    if (type === "contract") {
+      for (const iid of [existing.depositInvoiceId, existing.balanceInvoiceId].filter(Boolean)) {
+        const inv = await load(env, "invoice", iid);
+        if (inv && !inv.published) { await env.GALLERIES.delete(`studio/tok/${inv.token}`); await env.GALLERIES.delete(key("invoice", iid)); }
+      }
     }
     if (existing.token) await env.GALLERIES.delete(`studio/tok/${existing.token}`);
     await env.GALLERIES.delete(key(type, id));
@@ -750,17 +815,8 @@ async function handleApi(req, env, path) {
     const client = await load(env, "client", inv.clientId);
     const link = `${origin}/i/${inv.token}`;
     if (action === "send" && req.method === "POST") {
-      inv.published = true; inv.sentAt = new Date().toISOString();
-      let emailed = false, emailError = "";
-      try {
-        const s = invStatus(inv);
-        const next = inv.parts.find((p) => !p.paid);
-        await sendMail(env, settings, { to: clientEmails(client), subject: `Invoice ${inv.number}`, heading: `Invoice ${inv.number}`,
-          paras: [`Hi ${client.name.split(/\s+/)[0]},`, `Your invoice for ${fmt(s.total, settings.currency)} is ready.${next ? ` Next payment: ${next.label} of ${fmt(next.amount, settings.currency)}${next.due ? ", due " + niceDate(next.due) : ""}.` : ""}`, "You'll find the ways to pay on the invoice page."], button: { label: "View invoice", url: link } });
-        emailed = true;
-      } catch (e) { emailError = String(e.message || e); }
-      await save(env, "invoice", inv);
-      return json({ ok: true, emailed, emailError, link, item: { ...inv, ...invStatus(inv) } });
+      const r = await publishAndSendInvoice(env, settings, client, inv, origin);
+      return json({ ok: true, ...r, item: { ...inv, ...invStatus(inv) } });
     }
     if (action === "part" && req.method === "POST") {
       const p = inv.parts[+body.index];

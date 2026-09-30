@@ -8,10 +8,11 @@
 //   { t: "title", text }         centred bold agreement title
 //   { t: "h", text }             numbered section heading
 //   { t: "p", text }             paragraph (wrapped, **bold** supported)
-//   { t: "bullets", items }      bullet list
+//   { t: "bullets", items }      bullet list; items are strings or { text, level } (level 1 = indented)
 //   { t: "small", text }         small grey text
 //   { t: "gap", h }              vertical space
-//   { t: "sigs", cols: [{ label, typed, strokes, sub }, ...] }   signatures side by side; strokes = [[ [x,y]... ]] in 0..1
+//   { t: "sigs", cols: [{ label, typed, strokes, image, sub }, ...] }   signatures side by side; strokes = [[ [x,y]... ]] in 0..1,
+//                                image = { w, h, b64 } (grayscale JPEG)
 
 const W = 595, H = 842, MX = 50, MT = 56, MB = 64;
 const WIDTHS = [
@@ -69,6 +70,7 @@ function wrap(text, size, maxW) {
 
 export function buildPdf(blocks, { footer = "" } = {}) {
   const pages = [[]];
+  let usesImage = null;
   let y = H - MT;
   const cur = () => pages[pages.length - 1];
   const newPage = () => { pages.push([]); y = H - MT; };
@@ -129,12 +131,17 @@ export function buildPdf(blocks, { footer = "" } = {}) {
     else if (b.t === "h") { need(60); y -= 10; para("**" + b.text.replace(/\*/g, "") + "**", 14, 0.15, 19, 4); }
     else if (b.t === "p") para(b.text, 9.2, 0.2, 12.6, 6);
     else if (b.t === "bullets") {
-      for (const it of b.items) {
-        const lines = wrap(it, 9.2, W - 2 * MX - 28);
+      for (const raw of b.items) {
+        const it = typeof raw === "string" ? { text: raw, level: 0 } : raw;
+        const ind = it.level ? 22 : 0;
+        const lines = wrap(it.text, 9.2, W - 2 * MX - 28 - ind);
         lines.forEach((ln, i) => {
           need(12.6); y -= 12.6;
-          if (i === 0) cur().push(`0.2 g ${num(MX + 14)} ${num(y + 1.6)} 3 3 re f`);
-          runsAt(MX + 26, y, ln, 9.2, 0.2);
+          if (i === 0) {
+            if (it.level) cur().push(`0.35 G 0.2 g 0.6 w ${num(MX + 14 + ind - 1.4)} ${num(y + 1.6)} 2.8 2.8 re S`);
+            else cur().push(`0.2 g ${num(MX + 14)} ${num(y + 1.6)} 3 3 re f`);
+          }
+          runsAt(MX + 26 + ind, y, ln, 9.2, 0.2);
         });
       }
       y -= 6;
@@ -146,13 +153,18 @@ export function buildPdf(blocks, { footer = "" } = {}) {
       text(MX, y - 4, "Signatures", "F1", 11, 0.15);
       y -= 12;
       const colW = (W - 2 * MX) / 2;
-      const boxH = 62;
+      const boxH = 72;
       const top = y;
       b.cols.forEach((c, i) => {
         const x = MX + i * colW;
         const by = top - boxH - 8;
         if (c.typed) text(x + 6, by + 20, winAnsi(c.typed), "F3", 26, 0.1);
         else if (c.strokes) strokesAt(c.strokes, x, by, colW - 30, boxH);
+        else if (c.image) {
+          const h = boxH, w = Math.min(colW - 30, h * c.image.w / c.image.h);
+          usesImage = c.image;
+          cur().push(`q ${num(w)} 0 0 ${num(h)} ${num(x + 4)} ${num(by + 3)} cm /Im1 Do Q`);
+        }
         cur().push(`0.75 G 0.6 w ${num(x)} ${num(by)} m ${num(x + colW - 24)} ${num(by)} l S`);
         text(x, by - 13, c.label, "F1", 8.5, 0.15);
         if (c.sub) text(x, by - 25, c.sub, "F1", 8.5, 0.5);
@@ -169,18 +181,24 @@ export function buildPdf(blocks, { footer = "" } = {}) {
     ops.push(`BT 0.5 g /F1 7.5 Tf ${num(W - MX - width(pn, 7.5))} 32 Td (${pn}) Tj ET`);
   });
 
-  // Objects: 1 catalog, 2 pages, 3-5 fonts, then page/content pairs.
+  // Objects: 1 catalog, 2 pages, 3-5 fonts, 6 image (if used), then page/content pairs.
   const objs = [];
+  const first = usesImage ? 7 : 6;
   objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-  const kids = pages.map((_, i) => `${6 + i * 2} 0 R`).join(" ");
+  const kids = pages.map((_, i) => `${first + i * 2} 0 R`).join(" ");
   objs[2] = `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`;
   objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
   objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
   objs[5] = "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>";
+  if (usesImage) {
+    const bin = atob(usesImage.b64);
+    objs[6] = `<< /Type /XObject /Subtype /Image /Width ${usesImage.w} /Height ${usesImage.h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /DCTDecode /Length ${bin.length} >>\nstream\n${bin}\nendstream`;
+  }
+  const xobj = usesImage ? " /XObject << /Im1 6 0 R >>" : "";
   pages.forEach((ops, i) => {
     const content = ops.join("\n");
-    objs[6 + i * 2] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${7 + i * 2} 0 R >>`;
-    objs[7 + i * 2] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+    objs[first + i * 2] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >>${xobj} >> /Contents ${first + 1 + i * 2} 0 R >>`;
+    objs[first + 1 + i * 2] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
   });
 
   let out = "%PDF-1.4\n";

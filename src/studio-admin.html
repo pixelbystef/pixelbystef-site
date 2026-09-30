@@ -140,11 +140,14 @@ route(/^\/client\/(\w+)$/, (id) => {
   bind("#newp", () => projectForm(id));
   bind("#newc", () => {
     $("#cform").innerHTML = `<div class="card"><div class="grid">${select("tpl", "Template", S.templates.map((t) => [t.id, t.name]), "")}${select("proj", "Project", [["", "(none)"], ...ps.map((p) => [p.id, p.title])], ps[0]?.id || "")}</div>
+      <p class="muted">Also creates a deposit invoice (due today, emailed automatically when they sign) and a balance invoice, from the project's price and deposit.</p>
       <p><button id="mk">Create draft from template</button> <button class="ghost" id="mkblank">Blank contract</button></p></div>`;
     const create = async (blank) => {
       let title = "New contract", body = "";
       if (!blank) { const r = await api("render", "POST", { templateId: val("f_tpl"), clientId: id, projectId: val("f_proj") }); title = r.title; body = r.body; }
-      const r = await api("contract", "POST", { clientId: id, projectId: val("f_proj"), title, body: body || "Write the contract here." });
+      const r = await api("contract", "POST", { clientId: id, projectId: val("f_proj"), title, body: body || "Write the contract here.", autoInvoices: !blank });
+      if (r.invoices?.length) toast("Contract created with invoices " + r.invoices.join(" + "));
+      else if (!blank && val("f_proj")) toast("No invoices made: give the project a price first", true);
       await refresh(); nav("/contract/" + r.item.id);
     };
     bind("#mk", () => create(false)); bind("#mkblank", () => create(true));
@@ -184,6 +187,7 @@ route(/^\/contract\/(\w+)$/, async (id) => {
   ${x.status === "sent" ? '<button class="danger" id="void">Withdraw</button>' : ""}${x.status === "void" ? '<button class="ghost" id="reopen">Reopen as draft</button>' : ""}
   ${!locked ? '<button class="danger" id="del">Delete</button>' : ""}</p>
   ${x.status !== "draft" ? `<div class="link">${esc(link)}</div>` : ""}
+  ${x.depositInvoiceId || x.balanceInvoiceId ? `<h2>Invoices</h2>${[["Deposit", x.depositInvoiceId], ["Balance", x.balanceInvoiceId]].map(([l, iid]) => { const iv = S.invoices.find((i) => i.id === iid); return iv ? `<a class="card item row sb" href="#/invoice/${iv.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(iv.number)}</strong> <span class="muted">${l}</span></div><div>${fmt(iv.total)} ${pill(iv.status)}</div></a>` : ""; }).join("")}<p class="muted">The deposit invoice is emailed to the client automatically when they sign. Send the balance invoice yourself when you're ready.</p>` : ""}
   <h2>Audit trail</h2><div class="card"><table><tr><th>When (UTC)</th><th>Event</th><th>IP</th><th>Note</th></tr>${audit.map((a) => `<tr><td>${esc(new Date(a.t).toISOString().replace("T", " ").slice(0, 19))}</td><td>${esc(a.e)}</td><td>${esc(a.ip || "")}</td><td class="muted">${esc(a.note || "")}</td></tr>`).join("")}</table></div>`;
   const persist = () => api("contract/" + id, "POST", { title: val("f_title"), body: val("f_body") });
   bind("#save", async () => { await persist(); toast("Saved"); await reload(); });
@@ -311,7 +315,7 @@ route(/^\/settings$/, () => {
   <div class="card"><div class="grid">${field("businessName", "Business name", s.businessName)}${field("ownerName", "Your first name (email sign-off)", s.ownerName)}${field("email", "Your email (gets signed-contract copies)", s.email, "email")}
     ${field("fromEmail", "Send emails from", s.fromEmail, "email")}${field("currency", "Currency symbol", s.currency)}${field("nextInvoice", "Next invoice number", s.nextInvoice, "number")}
     ${field("signerName", "Countersign name (typed on signed PDFs)", s.signerName)}</div>${area("address", "Address / details shown on invoices", s.address)}${area("emailFooter", "Email sign-off", s.emailFooter)}</div>
-  <h2>Your signature</h2><div class="card"><p class="muted">Drawn once, added next to the client's on every signed PDF. Leave empty to use your typed name.</p>
+  <h2>Your signature</h2><div class="card"><p class="muted">Your signature is added next to the client's on every signed PDF. Your own signature is used by default; draw here only if you want to replace it. Clear the box and save to go back to the default.</p>
     <canvas id="pad" width="552" height="150" style="width:100%;max-width:552px;height:auto;aspect-ratio:552/150;touch-action:none;border:1px dashed var(--line);border-radius:12px;background:#fff"></canvas>
     <p><button class="ghost sm" id="clearsig">Clear</button></p></div>
   <h2>Cashflow in Google Sheets</h2><div class="card"><p class="muted">Every payment (due date, amount, paid or not) as a live table. In a Google Sheet, paste this formula into cell A1; it refreshes about once an hour. Keep the link private.</p>
