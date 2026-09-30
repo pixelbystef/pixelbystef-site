@@ -11,7 +11,9 @@
     "run_worker_first": true
   },
   "send_email": [
-    { "name": "EMAIL", "destination_address": "pixelbystef@gmail.com" }
+    { "name": "EMAIL", "destination_address": "pixelbystef@gmail.com" },
+    // Studio manager: emails contracts and invoices to clients (any recipient; needs Email Sending enabled for pixelbystef.com).
+    { "name": "MAILER" }
   ],
   // Client gallery files (photos, films, gallery settings) live in this private R2 bucket.
   "r2_buckets": [
@@ -20,6 +22,19 @@
   "vars": {
     // SHA-256 of the gallery admin key (the key itself stays on Stefan's Mac).
     "GALLERY_ADMIN_HASH": "deadbc6ae63c9184fda70b626160b69d9a1a54bcde1b0d4cf9c4add3611d4b7a"
+  },
+  // Branch/PR builds run `wrangler preview`, which uses these separate values so previews never touch live client data.
+  "previews": {
+    "vars": {
+      "GALLERY_ADMIN_HASH": "45aefb5ef14d31e58ab2069df683cfc2cdabeab706a1fa8631284397d2bbde50"
+    },
+    "r2_buckets": [
+      { "binding": "GALLERIES", "bucket_name": "pixelbystef-galleries-preview" }
+    ],
+    "send_email": [
+      { "name": "EMAIL", "destination_address": "pixelbystef@gmail.com" },
+      { "name": "MAILER" }
+    ]
   },
   "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
   "observability": { "enabled": true }

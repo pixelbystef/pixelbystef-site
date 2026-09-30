@@ -1,6 +1,7 @@
 // pixelbystef.com — static site + enquiry form handler.
 import { EmailMessage } from "cloudflare:email";
 import { handleGallery, handleAdmin } from "./gallery.js";
+import { handleStudio } from "./studio.js";
 // Static files in ./public are served directly by Cloudflare; this Worker only
 // runs for paths that aren't files (e.g. POST /api/enquiry).
 
@@ -152,8 +153,8 @@ ${rows.map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#6f6863">${e
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    // One address for everyone (and Google): www. and new. go to pixelbystef.com.
-    if (url.hostname !== CANONICAL_HOST && url.hostname.endsWith("pixelbystef.com")) {
+    // One address for everyone (and Google): www. and new. go to pixelbystef.com. Preview hosts (<branch>.new.pixelbystef.com) are left alone.
+    if (url.hostname === "www." + CANONICAL_HOST || url.hostname === "new." + CANONICAL_HOST) {
       url.hostname = CANONICAL_HOST;
       url.protocol = "https:";
       return Response.redirect(url.toString(), 301);
@@ -161,6 +162,7 @@ export default {
     if (url.pathname === "/api/enquiry") return handleEnquiry(request, env);
     if (url.pathname === "/g" || url.pathname.startsWith("/g/")) return handleGallery(request, env);
     if (url.pathname.startsWith("/g-admin/")) return handleAdmin(request, env);
+    if (/^\/(studio|sign\/|i\/|c\/)/.test(url.pathname + (url.pathname === "/studio" ? "/" : ""))) return handleStudio(request, env);
     return env.ASSETS.fetch(request);
   },
 };
