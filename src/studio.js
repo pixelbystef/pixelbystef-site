@@ -860,6 +860,13 @@ async function handleApi(req, env, path) {
     }
   }
 
+  if (path === "studio-key" && req.method === "POST") {
+    const k = String(body.key || "");
+    if (k.length < 8) return json({ error: "Use at least 8 characters" }, 400);
+    const salt = rid(16);
+    await env.GALLERIES.put("studio/_config/key.json", JSON.stringify({ salt, hash: await sha256(salt + k) }));
+    return json({ ok: true });
+  }
   if (path === "export-info") {
     const url2 = `${origin}/studio/export/payments.csv?t=${await exportToken(env)}`;
     return json({ url: url2, formula: `=IMPORTDATA("${url2}")` });
@@ -931,7 +938,10 @@ export async function handleStudio(req, env) {
     // STUDIO_KEY_HASH (a Cloudflare secret, SHA-256 of the studio key) is the studio's own key; the gallery admin key also works.
     const hashes = [env.STUDIO_KEY_HASH, env.GALLERY_ADMIN_HASH].filter(Boolean);
     const gotHash = given ? await sha256(given) : "";
-    if (!gotHash || !hashes.some((h) => safeEq(gotHash, h))) {
+    // A key set from Settings is stored (salted) in the private bucket, not in the code.
+    const own = await env.GALLERIES.get("studio/_config/key.json").then((o) => (o ? o.json() : null)).catch(() => null);
+    const ownOk = !!(own && given && safeEq(await sha256(own.salt + given), own.hash));
+    if (!ownOk && (!gotHash || !hashes.some((h) => safeEq(gotHash, h)))) {
       lock.n += 1;
       if (lock.n >= 5) { lock.until = Date.now() + 15 * 60000; lock.n = 0; }
       await env.GALLERIES.put(lockKey, JSON.stringify(lock)).catch(() => {});

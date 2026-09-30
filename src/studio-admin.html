@@ -319,6 +319,8 @@ route(/^\/settings$/, () => {
   <div class="card"><div class="grid">${field("businessName", "Business name", s.businessName)}${field("ownerName", "Your first name (email sign-off)", s.ownerName)}${field("email", "Your email (gets signed-contract copies)", s.email, "email")}
     ${field("fromEmail", "Send emails from", s.fromEmail, "email")}${field("currency", "Currency symbol", s.currency)}${field("nextInvoice", "Next invoice number", s.nextInvoice, "number")}
     ${field("signerName", "Countersign name (typed on signed PDFs)", s.signerName)}</div>${area("address", "Address / details shown on invoices", s.address)}${area("emailFooter", "Email sign-off", s.emailFooter)}</div>
+  <h2>Studio key</h2><div class="card"><p class="muted">The password for this studio. Changing it takes effect right away. Five wrong tries lock an address out for 15 minutes.</p>
+    <div class="row"><input id="newkey" type="password" class="grow" placeholder="New studio key (8+ characters)" autocomplete="new-password"><button id="savekey">Change key</button></div></div>
   <h2>Your signature</h2><div class="card"><p class="muted">Your signature is added next to the client's on every signed PDF. Your own signature is used by default; draw here only if you want to replace it. Clear the box and save to go back to the default.</p>
     <canvas id="pad" width="552" height="150" style="width:100%;max-width:552px;height:auto;aspect-ratio:552/150;touch-action:none;border:1px dashed var(--line);border-radius:12px;background:#fff"></canvas>
     <p><button class="ghost sm" id="clearsig">Clear</button></p></div>
@@ -342,6 +344,7 @@ route(/^\/settings$/, () => {
   api("export-info").then(showF);
   bind("#copyf", () => copy(formula).then?.(() => {}));
   bind("#regen", async () => { if (confirm("The old link will stop working. Continue?")) showF(await api("export-info/regenerate", "POST", {})); });
+  bind("#savekey", async () => { const k = $("#newkey").value; if (k.length < 8) return toast("Use at least 8 characters", true); await api("studio-key", "POST", { key: k }); $("#newkey").value = ""; toast("Studio key changed"); });
   bind("#addm", () => { methods.push({ id: "", name: "", link: "", instructions: "" }); render(); });
   bind("#save", async () => { await api("settings", "POST", { ...set({}, ["businessName", "ownerName", "email", "fromEmail", "currency", "nextInvoice", "signerName", "address", "emailFooter"]), methods, signerStrokes: strokes }); toast("Saved"); await reload(); });
 });
