@@ -88,6 +88,7 @@ async function newToken(env, type, id) {
   return token;
 }
 const DEFAULT_METHODS = [
+  { id: "revolut", name: "Pay with card", note: "charges may apply", button: "Pay with card", link: "https://revolut.me/pixelbystef", instructions: "Pay by card through Revolut. Card fees may be added by the payment provider." },
   { id: "wise-bank", name: "Bank transfer (Wise, GBP)", link: "", instructions: `Account name: Stefanus Wijaya
 Account number: 99684888
 Sort code: 23-08-01 (use when sending from the UK)
@@ -97,7 +98,6 @@ Swift/BIC: TRWIGB2LXXX (use when sending from outside the UK)
 
 Bank: Wise Payments Limited, 1st Floor, Worship Square, 65 Clifton Street, London, EC2A 4JE, United Kingdom` },
   { id: "wise-link", name: "Wise", link: "https://wise.com/pay/me/stefanusr1", instructions: "Pay with the button below.\nNew to Wise? Sign up with https://wise.com/invite/ilpc/stefanusr1 and get your first transfer fee-free (up to 500 GBP)." },
-  { id: "revolut", name: "Revolut", link: "https://revolut.me/pixelbystef", instructions: "Send the money with the button below, or open https://revolut.me/pixelbystef" },
 ];
 async function getSettings(env) {
   const o = await env.GALLERIES.get("studio/settings.json");
@@ -387,7 +387,8 @@ function invStatus(inv) {
   const total = invTotal(inv);
   const paid = money(inv.parts.filter((p) => p.paid).reduce((s, p) => s + p.amount, 0));
   const overdue = inv.parts.some((p) => !p.paid && p.due && p.due < today());
-  return { total, paid, outstanding: money(total - paid), status: !inv.published ? "draft" : total > 0 && paid >= total ? "paid" : overdue ? "overdue" : paid > 0 ? "part-paid" : "unpaid" };
+  const st = !inv.published ? "draft" : total > 0 && paid >= total ? "paid" : overdue ? "overdue" : paid > 0 ? "part-paid" : "unpaid";
+  return { total, paid, outstanding: money(total - paid), status: st, claimed: !!inv.claim && st !== "paid" && st !== "draft" };
 }
 
 // ---------- invoices made by the app ----------
@@ -448,7 +449,13 @@ function paymentBlock(settings, inv) {
   const chosen = settings.methods.filter((m) => !inv.methods.length || inv.methods.includes(m.id));
   if (!chosen.length) return "";
   return `<h2>How to pay</h2><p class="muted">Please use <strong>${esc(inv.number)}</strong> as the payment reference.</p>` +
-    chosen.map((m) => `<div class="card"><strong>${esc(m.name)}</strong><p style="white-space:pre-wrap;margin:6px 0 0">${autolink(m.instructions)}</p>${/^https?:\/\//.test(m.link || "") ? `<p style="margin:12px 0 0"><a class="btn" href="${esc(m.link)}" target="_blank" rel="noopener">Pay with ${esc(m.name)}</a></p>` : ""}</div>`).join("");
+    chosen.map((m) => `<div class="card"><strong>${esc(m.name)}</strong>${m.note ? ` <span class="muted">(${esc(m.note)})</span>` : ""}<p style="white-space:pre-wrap;margin:6px 0 0">${autolink(m.instructions)}</p>${/^https?:\/\//.test(m.link || "") ? `<p style="margin:12px 0 0"><a class="btn" href="${esc(m.link)}" target="_blank" rel="noopener">${esc(m.button || "Pay with " + m.name)}</a></p>` : ""}</div>`).join("");
+}
+function claimBlock(settings, inv) {
+  if (inv.claim) return `<div class="card" style="margin-top:20px">Thanks! You told us on ${esc(niceDate(inv.claim.at.slice(0, 10)))} that you've paid. ${esc(settings.ownerName)} will confirm as soon as it arrives.</div>`;
+  return `<div class="card noprint" style="margin-top:20px"><p style="margin:0 0 10px">Already paid? Let ${esc(settings.ownerName)} know so it can be checked off.</p>
+<button class="btn" id="paidbtn" type="button">I've paid this invoice</button> <span id="paidmsg" class="muted"></span></div>
+<script>document.getElementById("paidbtn").onclick=async function(){this.disabled=true;try{var r=await fetch(location.pathname.replace(/\/$/,"")+"/paid",{method:"POST"});var j=await r.json();if(j.ok)location.reload();else{this.disabled=false;document.getElementById("paidmsg").textContent=j.error||"Something went wrong."}}catch(e){this.disabled=false;document.getElementById("paidmsg").textContent="Connection problem, please try again."}}</script>`;
 }
 function invoiceHtml(settings, client, project, inv, { forPortal = false } = {}) {
   const st = invStatus(inv);
@@ -463,6 +470,7 @@ ${inv.items.map((i) => `<tr><td>${esc(i.desc)}</td><td class="r">${i.qty}</td><t
 ${inv.parts.map((p) => `<tr><td>${esc(p.label)}</td><td>${esc(niceDate(p.due) || "On receipt")}</td><td class="r">${esc(fmt(p.amount, cur))}</td><td class="r">${p.paid ? `<span class="pill ok">Paid${p.paidAt ? " " + esc(niceDate(p.paidAt)) : ""}</span>` : p.due && p.due < today() ? '<span class="pill bad">Overdue</span>' : '<span class="pill">Due</span>'}</td></tr>`).join("")}
 </table>${inv.notes ? `<p style="white-space:pre-wrap;margin-top:16px" class="muted">${esc(inv.notes)}</p>` : ""}
 ${settings.address ? `<p class="muted" style="white-space:pre-wrap;margin-top:16px;font-size:13px">${esc(settings.businessName)}\n${esc(settings.address)}</p>` : ""}</div>
+${st.status === "paid" || st.status === "draft" || forPortal ? "" : claimBlock(settings, inv)}
 ${st.status === "paid" ? "" : paymentBlock(settings, inv)}
 ${forPortal ? "" : `<p class="noprint" style="margin-top:24px"><a class="btn ghost" href="javascript:print()">Print / save as PDF</a></p>`}`;
 }
@@ -605,11 +613,30 @@ async function handleSign(req, env, token, sub) {
   return contractPage(req, env, c);
 }
 
-async function handleInvoicePage(req, env, token) {
+async function handleInvoicePage(req, env, token, sub) {
   const inv = await byToken(env, "invoice", token);
-  if (!inv || !inv.published) return notFound();
+  if (!inv || !inv.published) return sub ? json({ ok: false, error: "Not found" }, 404) : notFound();
   const settings = await getSettings(env);
-  const [client, project] = await Promise.all([load(env, "client", inv.clientId), load(env, "project", inv.projectId)]);
+  const client = await load(env, "client", inv.clientId);
+
+  // The client says they've paid: flag it for Stefan to check against his bank.
+  if (sub === "paid") {
+    if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+    const st = invStatus(inv);
+    if (st.status === "paid") return json({ ok: false, error: "This invoice is already marked as paid." }, 409);
+    if (inv.claim) return json({ ok: true });
+    const next = inv.parts.find((p) => !p.paid);
+    inv.claim = { at: new Date().toISOString(), ip: ipOf(req), part: next?.label || "", amount: next?.amount || 0 };
+    await save(env, "invoice", inv);
+    try {
+      await sendMail(env, settings, { to: settings.email, subject: `${client?.name || "A client"} says they've paid ${inv.number}${next ? " (" + next.label + ")" : ""}`,
+        heading: "Payment to check",
+        paras: [`${client?.name || "The client"} clicked "I've paid this invoice" on ${inv.number}${next ? `, for the ${next.label} of ${fmt(next.amount, settings.currency)}` : ""}.`, "Check your bank or Revolut, then mark the payment as paid in the studio."],
+        button: { label: "Open invoice in studio", url: `${new URL(req.url).origin}/studio#/invoice/${inv.id}` } });
+    } catch (e) { console.error("claim mail failed", e && e.message); }
+    return json({ ok: true });
+  }
+  const project = await load(env, "project", inv.projectId);
   return shell(`Invoice ${inv.number}`, invoiceHtml(settings, client, project, inv), "", settings);
 }
 
@@ -668,7 +695,7 @@ async function handleApi(req, env, path) {
       businessName: line(body.businessName, 80) || "pixelbystef", ownerName: line(body.ownerName, 80), email: validEmail(body.email) ? body.email : OWNER_EMAIL,
       fromEmail: validEmail(body.fromEmail) ? body.fromEmail : "studio@pixelbystef.com", currency: line(body.currency, 4) || "€",
       address: str(body.address, 500), signerName: line(body.signerName, 80), signerStrokes: cleanStrokes(body.signerStrokes), emailFooter: str(body.emailFooter, 600), nextInvoice: Math.max(1, parseInt(body.nextInvoice) || settings.nextInvoice),
-      methods: (Array.isArray(body.methods) ? body.methods : []).slice(0, 12).map((m) => ({ id: /^[\w-]{3,40}$/.test(m.id || "") ? m.id : rid(8), name: line(m.name, 60), instructions: str(m.instructions, 800), link: line(m.link, 300) })).filter((m) => m.name),
+      methods: (Array.isArray(body.methods) ? body.methods : []).slice(0, 12).map((m) => ({ id: /^[\w-]{3,40}$/.test(m.id || "") ? m.id : rid(8), name: line(m.name, 60), instructions: str(m.instructions, 800), link: line(m.link, 300), note: line(m.note, 60), button: line(m.button, 40) })).filter((m) => m.name),
     };
     await putSettings(env, s);
     return json({ ok: true, settings: s });
@@ -818,10 +845,16 @@ async function handleApi(req, env, path) {
       const r = await publishAndSendInvoice(env, settings, client, inv, origin);
       return json({ ok: true, ...r, item: { ...inv, ...invStatus(inv) } });
     }
+    if (action === "dismiss-claim" && req.method === "POST") {
+      delete inv.claim;
+      await save(env, "invoice", inv);
+      return json({ ok: true, item: { ...inv, ...invStatus(inv) } });
+    }
     if (action === "part" && req.method === "POST") {
       const p = inv.parts[+body.index];
       if (!p) return json({ error: "No such payment" }, 400);
       p.paid = !!body.paid; p.paidAt = p.paid ? (isDate(body.paidAt) ? body.paidAt : today()) : "";
+      delete inv.claim;
       await save(env, "invoice", inv);
       return json({ ok: true, item: { ...inv, ...invStatus(inv) } });
     }
@@ -885,7 +918,7 @@ export async function handleStudio(req, env) {
 
   let m;
   if ((m = p.match(/^\/sign\/([a-f0-9]{32})(?:\/(pdf|submit))?\/?$/))) return handleSign(req, env, m[1], m[2] || "");
-  if ((m = p.match(/^\/i\/([a-f0-9]{32})\/?$/))) return handleInvoicePage(req, env, m[1]);
+  if ((m = p.match(/^\/i\/([a-f0-9]{32})(?:\/(paid))?\/?$/))) return handleInvoicePage(req, env, m[1], m[2]);
   if ((m = p.match(/^\/c\/([a-f0-9]{32})\/?$/))) return handlePortal(req, env, m[1]);
 
   if (p === "/studio/login" && req.method === "POST") {

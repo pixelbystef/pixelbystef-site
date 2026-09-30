@@ -99,7 +99,7 @@ route(/^\/$/, () => {
       const nextP = ps.filter((p) => p.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0] || ps[0];
       const owe = outstanding(c.id);
       return `<a class="card item row sb" href="#/client/${c.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(c.name)}</strong><br><span class="muted">${esc(c.email || "no email")}</span></div>
-      <div class="muted">${nextP ? esc(nextP.title) + (nextP.date ? " · " + nice(nextP.date) : "") + " " + pill(nextP.status) : "No project yet"}${owe > 0 ? ` · <strong>${fmt(owe)}</strong> outstanding` : ""}</div></a>`;
+      <div class="muted">${nextP ? esc(nextP.title) + (nextP.date ? " · " + nice(nextP.date) : "") + " " + pill(nextP.status) : "No project yet"}${owe > 0 ? ` · <strong>${fmt(owe)}</strong> outstanding` : ""}${S.invoices.some((i) => i.clientId === c.id && i.claimed) ? ' <span class="pill warn">says paid: check</span>' : ""}</div></a>`;
     }).join("") : `<p class="muted">No clients yet. Add your first one above.</p>`;
   };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cli<em>ents</em></h1>
@@ -131,7 +131,7 @@ route(/^\/client\/(\w+)$/, (id) => {
   <div class="row sb"><h2>Contracts</h2><button class="ghost sm" id="newc">+ Contract</button></div><div id="cform"></div>
   ${cs.map((x) => `<a class="card item row sb" href="#/contract/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.title)}</strong></div><div>${pill(x.status)}</div></a>`).join("") || '<p class="muted">No contracts yet.</p>'}
   <div class="row sb"><h2>Invoices</h2><a class="btn ghost sm" href="#/invoice/new/${id}">+ Invoice</a></div>
-  ${is.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> <span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}</div></a>`).join("") || '<p class="muted">No invoices yet.</p>'}`;
+  ${is.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> <span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}${x.claimed ? ' <span class="pill warn">client says paid</span>' : ""}</div></a>`).join("") || '<p class="muted">No invoices yet.</p>'}`;
   bind("#save", async () => { await api("client/" + id, "POST", set({}, ["name", "email", "email2", "phone", "notes"])); toast("Saved"); await reload(); });
   bind("#del", async () => { if (confirm("Delete this client?")) { await api("client/" + id, "DELETE"); await refresh(); nav("/"); } });
   bind("#cp", () => copy(portal));
@@ -207,7 +207,7 @@ route(/^\/contract\/(\w+)$/, async (id) => {
 route(/^\/invoices$/, () => {
   const list = [...S.invoices].sort((a, b) => b.issued.localeCompare(a.issued));
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Invo<em>ices</em></h1><p class="muted">Create invoices from a client's page.</p>` +
-    (list.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> · ${esc(client(x.clientId)?.name || "")}<br><span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}</div></a>`).join("") || '<p class="muted">Nothing yet.</p>');
+    (list.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> · ${esc(client(x.clientId)?.name || "")}<br><span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}${x.claimed ? ' <span class="pill warn">client says paid</span>' : ""}</div></a>`).join("") || '<p class="muted">Nothing yet.</p>');
 });
 
 route(/^\/invoice\/(new\/)?(\w+)$/, (isNew, id) => {
@@ -242,6 +242,7 @@ route(/^\/invoice\/(new\/)?(\w+)$/, (isNew, id) => {
 
   $("#app").innerHTML = `<p class="mono"><a href="#/client/${inv.clientId}">← ${esc(cl?.name || "Client")}</a></p><h1>${inv.number ? esc(inv.number) : "New <em>invoice</em>"}</h1>
   ${inv.id ? `<p>${pill(inv.status)} <span class="muted">${esc(cl?.email || "")}</span></p>` : ""}
+  ${inv.claim && inv.status !== "paid" ? `<div class="card" style="border-color:var(--rose)"><strong>${esc(cl?.name || "The client")} says they've paid</strong> the ${esc(inv.claim.part || "invoice")} (${esc(new Date(inv.claim.at).toLocaleString("en-GB"))}).<br><span class="muted">Check your bank or Revolut, then tick "mark paid" below.</span> <button class="ghost sm" id="dismissclaim">It hasn't arrived: dismiss</button></div>` : ""}
   <div class="card"><div class="grid">${select("proj", "Project", [["", "(none)"], ...ps.map((p) => [p.id, p.title])], inv.projectId)}${field("issued", "Issue date", inv.issued, "date")}</div>
     <label>Line items</label><div id="items"></div></div>
   <h2>Deposit &amp; balance</h2><div class="card"><div class="row"><div class="grow"><label>Deposit amount</label><input id="dep" type="number" min="0" step="0.01" placeholder="e.g. 500"></div>
@@ -277,6 +278,7 @@ route(/^\/invoice\/(new\/)?(\w+)$/, (isNew, id) => {
     r.emailed ? toast("Sent to " + cl.email) : toast("Email failed: " + r.emailError + " — copy the link and send it yourself", true);
     await refresh(); nav("/invoice/" + it.id); if (inv.id) go();
   });
+  bind("#dismissclaim", async () => { await api(`invoice/${inv.id}/dismiss-claim`, "POST", {}); await reload(); });
   bind("#cl", () => copy(link));
   bind("#del", async () => { if (confirm("Delete this invoice?")) { await api("invoice/" + inv.id, "DELETE"); await refresh(); nav("/client/" + inv.clientId); } });
 });
@@ -306,7 +308,9 @@ route(/^\/settings$/, () => {
   let methods = s.methods.map((m) => ({ ...m }));
   const render = () => {
     $("#methods").innerHTML = methods.map((m, n) => `<div class="card"><div class="grid"><div><label>Name</label><input data-n="${n}" data-k="name" value="${esc(m.name)}" placeholder="Revolut"></div>
-      <div><label>Payment link (optional)</label><input data-n="${n}" data-k="link" value="${esc(m.link)}" placeholder="https://revolut.me/…"></div></div>
+      <div><label>Payment link (optional)</label><input data-n="${n}" data-k="link" value="${esc(m.link)}" placeholder="https://revolut.me/…"></div>
+      <div><label>Small note next to the name (optional)</label><input data-n="${n}" data-k="note" value="${esc(m.note || "")}" placeholder="charges may apply"></div>
+      <div><label>Button text (optional)</label><input data-n="${n}" data-k="button" value="${esc(m.button || "")}" placeholder="Pay with card"></div></div>
       <label>Instructions the client sees</label><textarea data-n="${n}" data-k="instructions" placeholder="Send to @yourtag, or IBAN …">${esc(m.instructions)}</textarea><p><button class="danger sm" data-rm="${n}">Remove</button></p></div>`).join("") || '<p class="muted">No payment methods yet.</p>';
     document.querySelectorAll("[data-n]").forEach((el) => (el.oninput = () => (methods[el.dataset.n][el.dataset.k] = el.value)));
     document.querySelectorAll("[data-rm]").forEach((el) => (el.onclick = () => { methods.splice(el.dataset.rm, 1); render(); }));
