@@ -161,6 +161,8 @@ async function sendMail(env, settings, { to, subject, heading, paras, button }) 
     replyTo: { email: settings.email, name: settings.ownerName },
     subject, text, html: mailHtml(settings, heading, paras, button),
   };
+  // Hidden copy to the studio's own inbox, so every email a client gets can be found in Gmail.
+  if (validEmail(settings.email) && !recipients.includes(settings.email)) msg.bcc = settings.email;
   const binding = env.MAILER || env.EMAIL;
   try {
     await binding.send(msg);
