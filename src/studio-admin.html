@@ -158,8 +158,8 @@ function projectForm(clientId, p = {}) {
   $("#pform").innerHTML = `<div class="card"><div class="grid">${field("title", "Title (e.g. Anna & Tom wedding)", p.title)}${select("type", "Type", ["Wedding", "Pre-wedding", "Proposal", "Elopement", "Engagement", "Other"].map((x) => [x, x]), p.type || "Wedding")}
     ${field("date", "Date", p.date, "date")}${field("time", "Time (e.g. 09:00-11:00)", p.time)}${field("location", "Location", p.location)}${field("package", "Package", p.package)}${select("status", "Status", ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"].map((x) => [x, x]), p.status || "enquiry")}
     ${field("price", "Total price", p.price || "", "number", 'step="0.01" min="0"')}${field("deposit", "Deposit / retainer", p.deposit || "", "number", 'step="0.01" min="0"')}${field("balanceDue", "Balance due date (defaults to the date)", p.balanceDue, "date")}${field("galleryUrl", "Gallery link (shown on client page)", p.galleryUrl)}</div>
-    ${area("deliverables", "Description of services (one per line, goes into the contract as bullets)", p.deliverables)}
-    ${area("extras", "Additional pricing lines (one per line, e.g. Travel Coverage: - / Additional Hourly Pricing: £150/hour)", p.extras)}
+    ${area("deliverables", "Description of services (one per line, goes into the contract as bullets; [location] is replaced by the location above)", p.deliverables || S.defaults.deliverables)}
+    ${area("extras", "Additional pricing lines (one per line, shown indented under Additional Pricing)", p.extras || S.defaults.extras)}
     ${area("notes", "Notes (private)", p.notes)}<p class="row"><button id="savep">Save project</button><button class="ghost" id="cancelp">Cancel</button>${p.id ? '<button class="danger" id="delp">Delete</button>' : ""}</p></div>`;
   $("#pform").scrollIntoView({ behavior: "smooth", block: "center" });
   bind("#cancelp", () => ($("#pform").innerHTML = ""));

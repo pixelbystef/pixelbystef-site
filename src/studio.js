@@ -187,6 +187,16 @@ async function sendMail(env, settings, { to, subject, heading, paras, button }) 
 const clientEmails = (c) => [c.email, c.email2].filter(validEmail);
 
 // ---------- templates: merge fields + light markup ("# Heading", blank line = new paragraph) ----------
+// Used whenever a project has no list of its own. "[location]" becomes the project's location.
+const defaultDeliverables = () => `1 hour photoshoot in [location]
+40-50 edited photos formatted for printing
+40-50 edited photos formatted for social media
+Preview of 10 images sent within the same day
+Delivery via online gallery`;
+const defaultExtras = (cur) => `Travel Coverage: -
+Additional Hourly Pricing: ${cur}150/hour
+Full RAW gallery upon request: ${cur}50`;
+
 function fields(settings, client, project) {
   const cur = settings.currency;
   const price = project ? money(project.price) : 0;
@@ -195,15 +205,15 @@ function fields(settings, client, project) {
     client_name: client?.name || "", client_email: client?.email || "", client_phone: client?.phone || "",
     project_title: project?.title || "", project_type: project?.type || "", event_date: niceDate(project?.date), location: project?.location || "",
     session_date: slashDate(project?.date), session_time: project?.time || "", package: project?.package || "",
-    deliverables_list: lines(project?.deliverables).map((l) => "- **" + l + "**").join("\n"),
-    extras_list: lines(project?.extras).map((l) => "  - " + l).join("\n"),
+    deliverables_list: lines(project?.deliverables || defaultDeliverables()).map((l) => "- **" + l.replace(/\[location\]/gi, project?.location || "[location]") + "**").join("\n"),
+    extras_list: lines(project?.extras || defaultExtras(cur)).map((l) => "  - " + l).join("\n"),
     price: price ? fmt(price, cur, true) : "", deposit: deposit ? fmt(deposit, cur, true) : "",
     balance: price ? fmt(price - deposit, cur, true) : "", balance_due_date: slashDate(project?.balanceDue || project?.date),
     today: niceDate(today()),
     business_name: settings.businessName, owner_name: settings.ownerName, business_email: settings.email,
   };
 }
-const fill = (tpl, vars) => String(tpl).replace(/^[ \t]*\{\{\s*(\w+)\s*\}\}[ \t]*\n/gm, (m, k) => (k in vars && vars[k] === "" ? "" : m)).replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+const fill = (tpl, vars) => String(tpl).replace(/^[ \t]*\{\{\s*(\w+)\s*\}\}[ \t]*\n/gm, (m, k) => (k in vars && vars[k] === "" ? "" : m)).replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vars ? vars[k] : m)).replace(/\*{4}/g, "");
 // Markup: "# Title", "## 1. Section", "- bullet", **bold**, blank line = new paragraph.
 function blocks(body) {
   const out = [];
@@ -229,13 +239,13 @@ const bodyHtml = (body) => blocks(body).map((b) =>
   `<p>${inline(b.text).replace(/\n/g, "<br>")}</p>`).join("\n");
 
 // One layout for every kind of shoot; only the wording of the Session changes.
-const CONTRACT_BODY = (what) => `# Photography Services Agreement
+const CONTRACT_BODY = (what, companion = "partner") => `# Photography Services Agreement
 
 **THIS AGREEMENT** is made as of {{today}} (the "**Effective Date**") between **{{client_name}}** ("**Client**") and **{{business_name}}** ("**Photographer**").
 
 ## 1. Engagement of Photographer
 
-1.1 **Services.** Subject to the terms set out herein, Client engages Photographer to provide, and Photographer agrees to provide, the photography services described in this Section 1.1 (the "**Services**") in connection with the ${what} of **{{client_name}}** and Client's partner (the "**Session**").
+1.1 **Services.** Subject to the terms set out herein, Client engages Photographer to provide, and Photographer agrees to provide, the photography services described in this Section 1.1 (the "**Services**") in connection with the ${what} of **{{client_name}}** and Client's ${companion} (the "**Session**").
 
 Date of Session: **{{session_date}}**
 Time of Session: **{{session_time}}**
@@ -352,6 +362,7 @@ const DEFAULT_TEMPLATES = [
   { name: "Pre-wedding", body: CONTRACT_BODY("pre-wedding photoshoot") },
   { name: "Elopement", body: CONTRACT_BODY("elopement") },
   { name: "Couple / engagement session", body: CONTRACT_BODY("photoshoot") },
+  { name: "Family", body: CONTRACT_BODY("family photoshoot", "family") },
 ];
 
 // ---------- sanitisers ----------
@@ -670,11 +681,11 @@ ${error ? `<p style="color:var(--rose)">${esc(error)}</p>` : ""}<button class="b
 }
 
 async function ensureDefaults(env) {
-  const o = await env.GALLERIES.head("studio/seeded-v3");
-  if (o) return;
-  await env.GALLERIES.put("studio/seeded-v3", "1");
-  for (const old of await listAll(env, "template")) await env.GALLERIES.delete(key("template", old.id));
-  for (const t of DEFAULT_TEMPLATES) await save(env, "template", { id: rid(), ...t, created: new Date().toISOString() });
+  // Adds any built-in template that is missing (by name); never touches templates you already have.
+  if (await env.GALLERIES.head("studio/seeded-v4")) return;
+  await env.GALLERIES.put("studio/seeded-v4", "1");
+  const have = new Set((await listAll(env, "template")).map((t) => t.name));
+  for (const t of DEFAULT_TEMPLATES) if (!have.has(t.name)) await save(env, "template", { id: rid(), ...t, created: new Date().toISOString() });
 }
 
 async function handleApi(req, env, path) {
@@ -687,7 +698,7 @@ async function handleApi(req, env, path) {
     await ensureDefaults(env);
     const [clients, projects, templates, contracts, invoices] = await Promise.all(TYPES.map((t) => listAll(env, t)));
     return json({
-      settings, origin, clients, projects, templates,
+      settings, origin, clients, projects, templates, defaults: { deliverables: defaultDeliverables(), extras: defaultExtras(settings.currency) },
       contracts: contracts.map(({ signature, ...c }) => ({ ...c, signedBy: signature?.name || "" })),
       invoices: invoices.map((i) => ({ ...i, ...invStatus(i) })),
     });
