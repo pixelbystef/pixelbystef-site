@@ -70,11 +70,18 @@ async function listAll(env, type) {
     keys.push(...r.objects.map((o) => o.key));
     cursor = r.truncated ? r.cursor : undefined;
   } while (cursor);
+  // Workers allow only ~6 open connections per request: read each object fully as soon as it arrives, a few at a time.
   const out = [];
-  for (let i = 0; i < keys.length; i += 20) {
-    const objs = await Promise.all(keys.slice(i, i + 20).map((k) => env.GALLERIES.get(k)));
-    for (const o of objs) if (o) out.push(await o.json());
+  for (let i = 0; i < keys.length; i += 4) {
+    const objs = await Promise.all(keys.slice(i, i + 4).map(async (k) => { const o = await env.GALLERIES.get(k); return o ? o.json() : null; }));
+    out.push(...objs.filter(Boolean));
   }
+  return out;
+}
+// Lists several types one after another (never in parallel) to stay under the connection limit.
+async function listMany(env, types) {
+  const out = [];
+  for (const t of types) out.push(await listAll(env, t));
   return out;
 }
 async function byToken(env, type, token) {
@@ -659,7 +666,7 @@ async function handlePortal(req, env, token) {
   const client = await byToken(env, "client", token);
   if (!client) return notFound();
   const settings = await getSettings(env);
-  const [projects, contracts, invoices] = await Promise.all([listAll(env, "project"), listAll(env, "contract"), listAll(env, "invoice")]);
+  const [projects, contracts, invoices] = await listMany(env, ["project", "contract", "invoice"]);
   const mine = (x) => x.clientId === client.id;
   const cs = contracts.filter((c) => mine(c) && (c.status === "sent" || c.status === "signed")).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
   const is = invoices.filter((i) => mine(i) && i.published).sort((a, b) => (b.issued || "").localeCompare(a.issued || ""));
@@ -698,7 +705,7 @@ async function handleApi(req, env, path) {
 
   if (path === "all") {
     await ensureDefaults(env);
-    const [clients, projects, templates, contracts, invoices] = await Promise.all(TYPES.map((t) => listAll(env, t)));
+    const [clients, projects, templates, contracts, invoices] = await listMany(env, TYPES);
     return json({
       settings, origin, clients, projects, templates, defaults: { deliverables: defaultDeliverables(), extras: defaultExtras(settings.currency) },
       contracts: contracts.map(({ signature, ...c }) => ({ ...c, signedBy: signature?.name || "" })),
@@ -788,7 +795,7 @@ async function handleApi(req, env, path) {
     if (!existing) return json({ ok: true });
     if (type === "contract" && existing.status === "signed") return json({ error: "Signed contracts can't be deleted (void is not possible either)." }, 409);
     if (type === "client") {
-      const [ps, cs, is] = await Promise.all([listAll(env, "project"), listAll(env, "contract"), listAll(env, "invoice")]);
+      const [ps, cs, is] = await listMany(env, ["project", "contract", "invoice"]);
       if ([...ps, ...cs, ...is].some((x) => x.clientId === id)) return json({ error: "Delete this client's projects, contracts and invoices first." }, 409);
     }
     if (type === "contract") {
@@ -915,7 +922,8 @@ async function exportToken(env, regenerate) {
 }
 const csvCell = (v) => { v = String(v ?? ""); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
 async function paymentsCsv(env) {
-  const [settings, clients, projects, invoices] = await Promise.all([getSettings(env), listAll(env, "client"), listAll(env, "project"), listAll(env, "invoice")]);
+  const settings = await getSettings(env);
+  const [clients, projects, invoices] = await listMany(env, ["client", "project", "invoice"]);
   const cl = Object.fromEntries(clients.map((c) => [c.id, c])), pr = Object.fromEntries(projects.map((p) => [p.id, p]));
   const rows = [["Invoice", "Client", "Project", "Project date", "Payment", "Due date", "Due month", "Amount", "Currency", "Status", "Paid date", "Invoice total", "Issued"]];
   for (const inv of invoices.sort((a, b) => (a.number || "").localeCompare(b.number || ""))) {
