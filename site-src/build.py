@@ -26,7 +26,8 @@ EXTRA_CSS = r"""
 .vhero .lead{color:rgba(251,249,246,.9);max-width:46ch;font-size:clamp(16px,1.35vw,19px)}
 .vhero .btn.ghost-light{background:transparent;color:#fbf9f6;border:1px solid rgba(251,249,246,.7)}
 .vhero .btn.ghost-light:hover{background:rgba(251,249,246,.12)}
-@media (max-width:700px){.vhero{min-height:78svh}.vhero .shade{background:linear-gradient(to top,rgba(13,11,10,.88) 0%,rgba(13,11,10,.5) 55%,rgba(13,11,10,.1) 100%)}}
+@media (max-width:700px){.vhero{min-height:0;padding-top:58vw}.vhero video,.vhero>img{height:auto;aspect-ratio:4/3;bottom:auto}.vhero .shade{background:linear-gradient(to bottom,rgba(13,11,10,0) 0,rgba(13,11,10,0) calc(75vw - 120px),#0d0b0a 75vw)}.vhero .wrap{padding-block:24px 36px}}
+.vhero+.pgal{padding-top:clamp(40px,6vw,80px)}
 
 .phero figure.pimg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:2px;background:#0d0b0a}
 .hfilms{background:var(--paper-2);padding-block:clamp(64px,9vw,120px)}
@@ -430,16 +431,16 @@ def gallery(items):
     return '<section class="pgal wrap"><div class="gal">' + ''.join(out) + '</div></section>'
 
 def phero(eyebrow, h1, lead, section, cta2=('#packages', 'See packages')):
+    # full-width photo or looping clip with the text on top (see .vhero CSS)
     fn, alt, cp = P1(section)
-    if fn.endswith('.mp4'):  # a short looping clip instead of a photo; poster = same name + -poster.jpg
+    if fn.endswith('.mp4'):  # poster = same name + -poster.jpg
         media = f'<video src="/assets/{fn}" poster="/assets/{fn[:-4]}-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="{html.escape(alt)}"></video>'
     else:
         media = img(fn, alt, lazy=False)
-    return f'''<section class="phero"><div class="wrap">
-  <div class="ptext"><p class="mono">{eyebrow}</p><h1>{h1}</h1><p class="lead">{lead}</p>
-  <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="{cta2[0]}">{cta2[1]}</a></div></div>
-  <figure class="pimg">{media}</figure>
-</div></section>'''
+    return f'''<section class="vhero">{media}<div class="shade"></div>
+  <div class="wrap"><div class="vtext"><p class="mono">{eyebrow}</p><h1>{h1}</h1><p class="lead">{lead}</p>
+  <div class="cta-row"><a class="btn light" href="/contact">Let's chat</a><a class="btn ghost-light" href="{cta2[0]}">{cta2[1]}</a></div></div></div>
+</section>'''
 
 def feel(h2, paras):
     return f'<section class="feel"><div class="wrap"><h2>{h2}</h2><div class="prose">' + ''.join(f'<p>{p}</p>' for p in paras) + '</div></div></section>'
@@ -520,15 +521,9 @@ def build():
          "Cinematic wedding and couples photographer and filmmaker based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
 
     # ---------- WEDDINGS ----------
-    fn, alt, cp = P1('weddings.hero')
-    poster = fn[:-4] + '-poster.jpg' if fn.endswith('.mp4') else fn
-    media = (f'<video src="/assets/{fn}" poster="/assets/{poster}" autoplay muted loop playsinline preload="auto" aria-label="{html.escape(alt)}"></video>'
-             if fn.endswith('.mp4') else img(fn, alt, lazy=False))
-    body = f'''<section class="vhero">{media}<div class="shade"></div>
-  <div class="wrap"><div class="vtext"><p class="mono">Weddings · film</p><h1>The whole day. The full <em>film.</em></h1>
-  <p class="lead">From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.</p>
-  <div class="cta-row"><a class="btn light" href="/contact">Let's chat</a><a class="btn ghost-light" href="#packages">See the package</a></div></div></div>
-</section>'''
+    body = phero('Weddings · film', 'The whole day. The full <em>film.</em>',
+                 'From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.',
+                 'weddings.hero', ('#packages', 'See the package'))
     body += ('<section class="wfilms"><div class="wrap"><div class="sec-head"><h2>Wedding <em>films</em></h2>'
              '<p>Press play. Every film is shot on the day by me, graded by hand.</p></div>' + reels_html() +
              '<p class="reels-more"><a class="btn ghost" href="/films">All films</a></p></div></section>' + REEL_JS)
