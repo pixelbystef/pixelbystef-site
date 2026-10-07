@@ -12,6 +12,22 @@ def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
 # ---------------------------------------------------------------- CSS
 EXTRA_CSS = r"""
+/* weddings: full-width video hero with text on top */
+.vhero{position:relative;min-height:clamp(520px,82vh,860px);display:flex;align-items:flex-end;overflow:hidden;background:#0d0b0a;color:#fbf9f6}
+.vhero video,.vhero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vhero .shade{position:absolute;inset:0;background:linear-gradient(to right,rgba(13,11,10,.55) 0%,rgba(13,11,10,.25) 40%,rgba(13,11,10,0) 65%),linear-gradient(to top,rgba(13,11,10,.75) 0%,rgba(13,11,10,.35) 45%,rgba(13,11,10,0) 80%)}
+.vhero .wrap{position:relative;width:100%;padding-block:clamp(40px,7vw,96px)}
+.vhero .vtext{max-width:640px}
+.vhero .mono{color:rgba(251,249,246,.8)}
+.vhero h1{color:#fbf9f6;font-size:clamp(48px,6.4vw,100px);line-height:1;margin:10px 0 18px;text-shadow:0 2px 24px rgba(0,0,0,.35)}
+.vhero .cta-row{justify-content:flex-start;margin-top:26px}
+.packages+.pgal{padding-top:clamp(56px,8vw,110px)}
+.vhero h1 em{color:#f0c9cf}
+.vhero .lead{color:rgba(251,249,246,.9);max-width:46ch;font-size:clamp(16px,1.35vw,19px)}
+.vhero .btn.ghost-light{background:transparent;color:#fbf9f6;border:1px solid rgba(251,249,246,.7)}
+.vhero .btn.ghost-light:hover{background:rgba(251,249,246,.12)}
+@media (max-width:700px){.vhero{min-height:78svh}.vhero .shade{background:linear-gradient(to top,rgba(13,11,10,.88) 0%,rgba(13,11,10,.5) 55%,rgba(13,11,10,.1) 100%)}}
+
 .phero figure.pimg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:2px;background:#0d0b0a}
 .hfilms{background:var(--paper-2);padding-block:clamp(64px,9vw,120px)}
 .intro{background:var(--paper-2);padding-block:clamp(56px,8vw,120px)}.intro .a img,.intro .c img{margin:0}
@@ -504,13 +520,18 @@ def build():
          "Cinematic wedding and couples photographer and filmmaker based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
 
     # ---------- WEDDINGS ----------
-    body = phero('Weddings · film', 'The whole day. The full <em>film.</em>',
-                 'From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.',
-                 'weddings.hero')
+    fn, alt, cp = P1('weddings.hero')
+    poster = fn[:-4] + '-poster.jpg' if fn.endswith('.mp4') else fn
+    media = (f'<video src="/assets/{fn}" poster="/assets/{poster}" autoplay muted loop playsinline preload="auto" aria-label="{html.escape(alt)}"></video>'
+             if fn.endswith('.mp4') else img(fn, alt, lazy=False))
+    body = f'''<section class="vhero">{media}<div class="shade"></div>
+  <div class="wrap"><div class="vtext"><p class="mono">Weddings · film</p><h1>The whole day. The full <em>film.</em></h1>
+  <p class="lead">From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.</p>
+  <div class="cta-row"><a class="btn light" href="/contact">Let's chat</a><a class="btn ghost-light" href="#packages">See the package</a></div></div></div>
+</section>'''
     body += ('<section class="wfilms"><div class="wrap"><div class="sec-head"><h2>Wedding <em>films</em></h2>'
              '<p>Press play. Every film is shot on the day by me, graded by hand.</p></div>' + reels_html() +
              '<p class="reels-more"><a class="btn ghost" href="/films">All films</a></p></div></section>' + REEL_JS)
-    body += gallery(P('weddings.gallery'))
     body += feel('Real moments, a bit of <em>direction</em>, lots of colour.', [
         "Most of the day I blend in and let things happen: the hugs, the happy tears, your uncle's speech that runs ten minutes too long. When we need a shot, I jump in, keep it quick, and send you back to your drink.",
         "Everything is shot with cinema cameras and graded by hand, so your film looks like a movie, not a home video.",
@@ -522,6 +543,7 @@ def build():
   </div>
   <div class="pk-foot"><span>Shorter day? Half-day coverage is available, just ask.</span><span>{TRAVEL}</span></div>
 </div></section>'''
+    body += gallery(P('weddings.gallery'))
     body += steps([('We chat', 'Coffee in Edinburgh or London, or a video call. You tell me about you two and the day you have in mind.'),
                    ('We plan', 'Moodboard, timeline and locations, built around the best light. I send reminders so you don\'t have to.'),
                    ('You enjoy it', 'On the day you get on with celebrating. A sneak peek lands within 24 hours, the rest within 4 weeks.')])
