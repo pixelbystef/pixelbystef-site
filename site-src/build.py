@@ -499,19 +499,18 @@ def build():
          "Cinematic wedding and couples photographer and filmmaker based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
 
     # ---------- WEDDINGS ----------
-    body = phero('Weddings · photo &amp; film', 'The whole day. The full <em>film.</em>',
+    body = phero('Weddings · film', 'The whole day. The full <em>film.</em>',
                  'From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.',
                  'weddings.hero')
     body += gallery(P('weddings.gallery'))
     body += feel('Real moments, a bit of <em>direction</em>, lots of colour.', [
         "Most of the day I blend in and let things happen: the hugs, the happy tears, your uncle's speech that runs ten minutes too long. When we need a shot, I jump in, keep it quick, and send you back to your drink.",
-        "Everything is shot with cinema cameras and graded by hand, so your photos and your film look like they belong to the same movie.",
+        "Everything is shot with cinema cameras and graded by hand, so your film looks like a movie, not a home video.",
         "Tea ceremony in the morning and a ceilidh at night? Two days, two countries? Tell me the plan and I'll shape the coverage around it."])
     body += f'''<section class="packages" id="packages"><div class="wrap">
-  <div class="sec-head"><h2>Wedding <em>packages</em></h2><p>Book photo, film, or both. Booking both? Ask for a combined quote.</p></div>
+  <div class="sec-head"><h2>Wedding <em>film</em></h2><p>A full day on cinema cameras, cut into a film you'll actually rewatch.</p></div>
   <div class="pk-grid">
-  {pk('Photo', '1,400', [CONSULT, '8 hours of coverage', '500–800 high-res images, formatted for print', '500–800 high-res images, formatted for social media', 'Preview of 20 images within 24 hours', 'Delivered in an online gallery within 4 weeks'])}
-  {pk('Film', '1,600', [CONSULT, '8 hours of coverage with 2 cinema cameras, pro audio &amp; drone', '10–12 minute wedding film', '1–2 minute highlight film', 'Full ceremony &amp; speeches recordings', 'Delivered online within 4 weeks'])}
+  {pk('Wedding film', '1,800', [CONSULT, '8 hours of coverage with 2 cinema cameras, pro audio &amp; drone', '10–12 minute wedding film', '1–2 minute highlight film', 'Full ceremony &amp; speeches recordings', 'Delivered online within 4 weeks'])}
   </div>
   <div class="pk-foot"><span>Shorter day? Half-day coverage is available, just ask.</span><span>{TRAVEL}</span></div>
 </div></section>'''
@@ -522,7 +521,7 @@ def build():
                    ('We plan', 'Moodboard, timeline and locations, built around the best light. I send reminders so you don\'t have to.'),
                    ('You enjoy it', 'On the day you get on with celebrating. A sneak peek lands within 24 hours, the rest within 4 weeks.')])
     body += cta()
-    page('weddings.html', 'Wedding photography & films · pixelbystef', 'Cinematic wedding photography and films in Edinburgh, London, the UK and Europe. Photo from £1,400, film from £1,600.', body, '/weddings', P1('weddings.hero')[0])
+    page('weddings.html', 'Wedding films · pixelbystef', 'Cinematic wedding films in Edinburgh, London, the UK and Europe. Full-day coverage on cinema cameras, £1,800.', body, '/weddings', P1('weddings.hero')[0])
 
     # ---------- ELOPEMENTS ----------
     body = phero('Elopements', 'Just you two. And a very big <em>view.</em>',
