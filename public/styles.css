@@ -196,6 +196,7 @@ footer a:hover{color:var(--rose)}
 .email{user-select:all;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
+.phero figure.pimg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:2px;background:#0d0b0a}
 .hfilms{background:var(--paper-2);padding-block:clamp(64px,9vw,120px)}
 .intro{background:var(--paper-2);padding-block:clamp(56px,8vw,120px)}.intro .a img,.intro .c img{margin:0}
 .films .still{padding-block:0;background:none}.films .still img{display:block;border-radius:2px}

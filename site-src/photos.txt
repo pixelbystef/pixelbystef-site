@@ -101,7 +101,8 @@ https://www.youtube.com/watch?v=LtGcSnJ2k2s | Isaac & Temcy | "To love and to ch
 # ---------------- WEDDINGS ----------------
 
 [weddings.hero]
-wedding-stories.jpg | Bride and groom laughing through a shower of confetti | -
+# a photo (.jpg) or a short looping clip (.mp4, with a matching -poster.jpg in assets)
+wedding-reel.mp4 | Bride and groom laughing through a shower of confetti | -
 
 [weddings.gallery]
 # short on purpose (3 rows): portrait = 1, landscape = 2, keep the total at 9.

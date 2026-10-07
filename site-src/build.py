@@ -12,6 +12,7 @@ def rd(p): return open(os.path.join(HERE, p), encoding='utf-8').read()
 
 # ---------------------------------------------------------------- CSS
 EXTRA_CSS = r"""
+.phero figure.pimg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:2px;background:#0d0b0a}
 .hfilms{background:var(--paper-2);padding-block:clamp(64px,9vw,120px)}
 .intro{background:var(--paper-2);padding-block:clamp(56px,8vw,120px)}.intro .a img,.intro .c img{margin:0}
 .films .still{padding-block:0;background:none}.films .still img{display:block;border-radius:2px}
@@ -414,10 +415,14 @@ def gallery(items):
 
 def phero(eyebrow, h1, lead, section, cta2=('#packages', 'See packages')):
     fn, alt, cp = P1(section)
+    if fn.endswith('.mp4'):  # a short looping clip instead of a photo; poster = same name + -poster.jpg
+        media = f'<video src="/assets/{fn}" poster="/assets/{fn[:-4]}-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="{html.escape(alt)}"></video>'
+    else:
+        media = img(fn, alt, lazy=False)
     return f'''<section class="phero"><div class="wrap">
   <div class="ptext"><p class="mono">{eyebrow}</p><h1>{h1}</h1><p class="lead">{lead}</p>
   <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="{cta2[0]}">{cta2[1]}</a></div></div>
-  <figure class="pimg">{img(fn, alt, lazy=False)}</figure>
+  <figure class="pimg">{media}</figure>
 </div></section>'''
 
 def feel(h2, paras):
@@ -502,6 +507,9 @@ def build():
     body = phero('Weddings · film', 'The whole day. The full <em>film.</em>',
                  'From the nervous laughter at prep to the questionable dance moves at midnight, I cover your wedding like a film set, minus the clapperboard.',
                  'weddings.hero')
+    body += ('<section class="wfilms"><div class="wrap"><div class="sec-head"><h2>Wedding <em>films</em></h2>'
+             '<p>Press play. Every film is shot on the day by me, graded by hand.</p></div>' + reels_html() +
+             '<p class="reels-more"><a class="btn ghost" href="/films">All films</a></p></div></section>' + REEL_JS)
     body += gallery(P('weddings.gallery'))
     body += feel('Real moments, a bit of <em>direction</em>, lots of colour.', [
         "Most of the day I blend in and let things happen: the hugs, the happy tears, your uncle's speech that runs ten minutes too long. When we need a shot, I jump in, keep it quick, and send you back to your drink.",
@@ -514,14 +522,11 @@ def build():
   </div>
   <div class="pk-foot"><span>Shorter day? Half-day coverage is available, just ask.</span><span>{TRAVEL}</span></div>
 </div></section>'''
-    body += ('<section class="wfilms"><div class="wrap"><div class="sec-head"><h2>Wedding <em>films</em></h2>'
-             '<p>Press play. Every film is shot on the day by me, graded by hand.</p></div>' + reels_html() +
-             '<p class="reels-more"><a class="btn ghost" href="/films">All films</a></p></div></section>' + REEL_JS)
     body += steps([('We chat', 'Coffee in Edinburgh or London, or a video call. You tell me about you two and the day you have in mind.'),
                    ('We plan', 'Moodboard, timeline and locations, built around the best light. I send reminders so you don\'t have to.'),
                    ('You enjoy it', 'On the day you get on with celebrating. A sneak peek lands within 24 hours, the rest within 4 weeks.')])
     body += cta()
-    page('weddings.html', 'Wedding films · pixelbystef', 'Cinematic wedding films in Edinburgh, London, the UK and Europe. Full-day coverage on cinema cameras, £1,800.', body, '/weddings', P1('weddings.hero')[0])
+    page('weddings.html', 'Wedding films · pixelbystef', 'Cinematic wedding films in Edinburgh, London, the UK and Europe. Full-day coverage on cinema cameras, £1,800.', body, '/weddings', 'wedding-reel-poster.jpg')
 
     # ---------- ELOPEMENTS ----------
     body = phero('Elopements', 'Just you two. And a very big <em>view.</em>',
