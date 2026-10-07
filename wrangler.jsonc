@@ -36,6 +36,6 @@
       { "name": "MAILER" }
     ]
   },
-  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.js.txt"], "fallthrough": true }],
   "observability": { "enabled": true }
 }

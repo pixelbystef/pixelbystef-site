@@ -10,6 +10,9 @@
 // pointing at "<type>:<id>" so public links can be resolved without listing. Signed PDFs: studio/pdf/<id>.pdf.
 
 import ADMIN from "./studio-admin.html";
+// pdf.js (Apache-2.0), served from here so the studio can read old contract PDFs in the browser.
+import PDFJS from "./lib/pdf.min.js.txt";
+import PDFJS_WORKER from "./lib/pdf.worker.min.js.txt";
 import { buildPdf } from "./studio-pdf.js";
 import { DEFAULT_SIGNATURE } from "./studio-signature.js";
 
@@ -761,10 +764,10 @@ async function handleApi(req, env, path) {
       };
       if (dep > 0 && dep < price) {
         const d = await quiet(await createInvoice(env, { ...common, desc: `Deposit: ${project.title}`, label: "Deposit", amount: dep, due: body.signedDate }), !!body.depositPaid, body.depositPaidDate);
-        const b = await quiet(await createInvoice(env, { ...common, desc: `Remaining balance: ${project.title}`, label: "Balance", amount: money(price - dep), due: project.balanceDue || project.date || body.signedDate }), !!body.balancePaid, body.balancePaidDate);
+        const b = await quiet(await createInvoice(env, { ...common, desc: `Remaining balance: ${project.title}`, label: "Balance", amount: money(price - dep), due: project.balanceDue || project.date || "" }), !!body.balancePaid, body.balancePaidDate);
         contract.depositInvoiceId = d.id; contract.balanceInvoiceId = b.id;
       } else {
-        const b = await quiet(await createInvoice(env, { ...common, desc: project.title, label: "Payment in full", amount: price, due: project.balanceDue || project.date || body.signedDate }), !!body.balancePaid, body.balancePaidDate);
+        const b = await quiet(await createInvoice(env, { ...common, desc: project.title, label: "Payment in full", amount: price, due: project.balanceDue || project.date || "" }), !!body.balancePaid, body.balancePaidDate);
         contract.balanceInvoiceId = b.id;
       }
     }
@@ -1050,6 +1053,9 @@ export async function handleStudio(req, env) {
   if (p.startsWith("/studio/api/")) {
     try { return await handleApi(req, env, decodeURIComponent(p.slice("/studio/api/".length)).replace(/\/$/, "")); }
     catch (e) { console.error("studio api error", e && e.stack); return json({ error: "Server error: " + String(e.message || e) }, 500); }
+  }
+  if (p === "/studio/lib/pdf.js" || p === "/studio/lib/pdf.worker.js") {
+    return respond(p.endsWith("worker.js") ? PDFJS_WORKER : PDFJS, 200, "text/javascript; charset=utf-8", { "Cache-Control": "private, max-age=86400" });
   }
   if (p === "/studio" || p === "/studio/") return respond(ADMIN);
   return respond("Not found", 404, "text/plain");

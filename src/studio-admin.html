@@ -103,7 +103,7 @@ route(/^\/$/, () => {
     }).join("") : `<p class="muted">No clients yet. Add your first one above.</p>`;
   };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cli<em>ents</em></h1>
-    <div class="row" style="margin:14px 0 20px"><input id="q" class="grow" placeholder="Search clients…"><button id="new">+ New client</button><a class="btn ghost" href="#/import">Import existing booking</a></div>
+    <div class="row" style="margin:14px 0 20px"><input id="q" class="grow" placeholder="Search clients…"><button id="new">+ New client</button><a class="btn ghost" href="#/import-pdf">Import from PDFs</a><a class="btn ghost" href="#/import">Import one by hand</a></div>
     <div id="newform"></div><div id="list"></div>`;
   draw();
   $("#q").oninput = (e) => draw(e.target.value);
@@ -202,6 +202,168 @@ route(/^\/import$/, () => {
     const r = await api("import-booking", "POST", body);
     toast("Imported. No emails were sent." + (r.invoices.length ? " Invoices: " + r.invoices.join(", ") : ""));
     await refresh(); nav("/client/" + r.clientId);
+  });
+});
+
+
+// ---------- import from old contract PDFs (Pixieset): read in the browser, review, import silently ----------
+// <parser>
+// Reads the text lines of an old Pixieset "Photography Services Agreement" PDF into booking details.
+function parseBooking(rawLines) {
+  const MONTHS = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+  const iso = (y, m, d) => (y && m >= 1 && m <= 12 && d >= 1 && d <= 31 ? `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` : "");
+  const toDate = (s) => {
+    s = String(s || "").trim();
+    let m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return iso(+m[3], +m[2], +m[1]);
+    m = s.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/); if (m && MONTHS[m[2].toLowerCase()]) return iso(+m[3], MONTHS[m[2].toLowerCase()], +m[1]);
+    m = s.match(/([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/); if (m && MONTHS[m[1].toLowerCase()]) return iso(+m[3], MONTHS[m[1].toLowerCase()], +m[2]);
+    return "";
+  };
+  const lines = rawLines.map((l) => l.replace(/^l\s+/, "").replace(/\s+:/g, ":").replace(/\s+/g, " ").trim()).filter(Boolean);
+  const text = lines.join("\n");
+  const after = (re) => { const m = text.match(re); return m ? m[1].trim() : ""; };
+  const unknown = (v) => (/^(tbc|tbd|to be confirmed|n\/a|-)?$/i.test(v.trim()) ? "" : v.trim());
+
+  const titleLine = lines.find((l) => / Contract$/.test(l)) || "";
+  const name = titleLine.replace(/ Contract$/, "").trim();
+  const emails = (text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g) || []).filter((e) => !/^pixelbystef@/i.test(e));
+  const word = (text.match(/in connection with the ([a-z]+) of/i) || [])[1] || "session";
+  const eventWord = ((text.match(/\(the [“"]\s*([A-Za-z]+)\s*[”"]\)\.?\s*\n?\s*Date of/i) || [])[1] || (text.match(/Date of ([A-Za-z]+):/) || [])[1] || word).toLowerCase();
+  const dateText = after(/^Date of [A-Za-z]+:\s*(.*)$/m);
+  const timeText = after(/^Time of [A-Za-z]+:\s*(.*)$/m);
+  const locText = after(/^Location of [A-Za-z]+:\s*(.*)$/m);
+
+  // services: everything between "Description of Services:" and "As part of the Services"
+  const si = lines.findIndex((l) => /^Description of Services:/.test(l));
+  const ei = lines.findIndex((l, i) => i > si && /^As part of the Services/.test(l));
+  const services = si >= 0 ? lines.slice(si + 1, ei > si ? ei : si + 12).filter((l) => !/^[-–]+$/.test(l)) : [];
+
+  // fees
+  const ti = lines.findIndex((l) => /^Total Fee for Services:/.test(l));
+  const di = lines.findIndex((l) => /^Deposit due upon signing:/.test(l));
+  const money = (re) => { const m = text.match(re); return m ? parseFloat(m[1].replace(/,/g, "")) : 0; };
+  const rem = text.match(/Remaining amount due on (.+?):\s*£?\s*([\d,.]+)/);
+  const extras = ti >= 0 && di > ti ? lines.slice(ti + 1, di).filter((l) => /:\s*\S/.test(l)) : [];
+
+  const signed = (text.match(/Signed on ([A-Za-z]+ \d{1,2}, ?\d{4})/) || [])[1];
+  const issue = (text.match(/Issue date\s*([A-Za-z]+ \d{1,2},? ?(?:\d{4})?)/) || [])[1];
+  const eventName = eventWord === "wedding" ? "Wedding" : eventWord === "session" || eventWord === "photoshoot" ? "Photoshoot" : /pre/i.test(eventWord) ? "Pre-wedding" : "Other";
+  return {
+    name, email: emails[0] || "", signedDate: toDate(signed) || toDate(issue),
+    title: `${name} ${eventWord}`.trim(), type: eventName,
+    date: toDate(dateText), dateText, time: unknown(timeText), location: unknown(locText),
+    price: money(/Total Fee for Services:\s*£?\s*([\d,.]+)/), deposit: money(/Deposit due upon signing:\s*£?\s*([\d,.]+)/),
+    balanceDue: rem ? toDate(rem[1]) : "", balanceText: rem ? rem[1] : "",
+    services: services.join("\n"), extras: extras.join("\n"),
+  };
+}
+// </parser>
+
+let pdfjsReady;
+function loadPdfJs() {
+  if (pdfjsReady) return pdfjsReady;
+  pdfjsReady = new Promise((res, rej) => {
+    const sc = document.createElement("script"); sc.src = "/studio/lib/pdf.js";
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "/studio/lib/pdf.worker.js"; res(window.pdfjsLib); };
+    sc.onerror = () => rej(new Error("Couldn't load the PDF reader"));
+    document.head.appendChild(sc);
+  });
+  return pdfjsReady;
+}
+// Text of a PDF as lines (items on the same row are joined left to right).
+async function pdfLines(buf) {
+  const lib = await loadPdfJs();
+  const doc = await lib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+  const lines = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const tc = await (await doc.getPage(n)).getTextContent();
+    const rows = [];
+    for (const it of tc.items) {
+      if (!it.str) continue;
+      const y = it.transform[5], x = it.transform[4];
+      let row = rows.find((r) => Math.abs(r.y - y) < 2.5);
+      if (!row) { row = { y, items: [] }; rows.push(row); }
+      row.items.push({ x, s: it.str });
+    }
+    rows.sort((a, b) => b.y - a.y);
+    for (const r of rows) lines.push(r.items.sort((a, b) => a.x - b.x).map((i) => i.s).join(" ").replace(/\s+/g, " ").trim());
+  }
+  return lines;
+}
+
+route(/^\/import-pdf$/, () => {
+  let recs = [];
+  const fld = (i, k, label, v, type = "text", extra = "") => `<div><label>${label}</label><input data-i="${i}" data-k="${k}" type="${type}" value="${esc(v ?? "")}" ${extra}></div>`;
+  const draw = () => {
+    $("#recs").innerHTML = recs.map((r, i) => {
+      const p = r.p, ex = r.existing;
+      return `<div class="card"><div class="row sb"><label style="text-transform:none;font:inherit;margin:0"><input type="checkbox" data-i="${i}" data-k="include" ${r.include ? "checked" : ""}> <strong>${esc(p.name || r.file.name)}</strong> <span class="muted">${esc(r.file.name)}</span></label>
+        <span>${r.status ? `<span class="pill ${r.statusOk ? "ok" : "bad"}">${esc(r.status)}</span>` : ex ? '<span class="pill warn">client already exists</span>' : ""}${r.dup ? ' <span class="pill bad">looks already imported</span>' : ""}</span></div>
+        <div class="grid">${fld(i, "name", "Client name", p.name)}${fld(i, "email", "Email", p.email, "email")}${fld(i, "title", "Shoot title", p.title)}${fld(i, "signedDate", "Date they signed", p.signedDate, "date")}
+        ${fld(i, "date", "Date of shoot (empty if not decided)", p.date, "date")}${fld(i, "time", "Time", p.time)}${fld(i, "location", "Location", p.location)}${fld(i, "price", "Total price", p.price, "number", 'step="0.01"')}
+        ${fld(i, "deposit", "Deposit", p.deposit, "number", 'step="0.01"')}${fld(i, "balanceDue", "Balance due date", p.balanceDue, "date")}</div>
+        <div class="grid"><div><label>Description of services</label><textarea data-i="${i}" data-k="services" style="min-height:90px">${esc(p.services)}</textarea></div>
+        <div><label>Additional pricing</label><textarea data-i="${i}" data-k="extras" style="min-height:90px">${esc(p.extras)}</textarea></div></div>
+        <label style="text-transform:none;font:inherit;margin:6px 0 0"><input type="checkbox" data-i="${i}" data-k="depositPaid" ${r.depositPaid ? "checked" : ""}> Deposit already paid</label>
+        <label style="text-transform:none;font:inherit;margin:2px 0 0"><input type="checkbox" data-i="${i}" data-k="balancePaid" ${r.balancePaid ? "checked" : ""}> Balance already paid</label></div>`;
+    }).join("");
+    document.querySelectorAll("#recs [data-k]").forEach((el) => {
+      const i = +el.dataset.i, k = el.dataset.k;
+      el.oninput = el.onchange = () => { if (el.type === "checkbox") recs[i][k] = el.checked; else recs[i].p[k] = el.type === "number" ? +el.value || 0 : el.value; updateGo(); };
+    });
+    updateGo();
+  };
+  const updateGo = () => {
+    const n = recs.filter((r) => r.include && !r.done).length;
+    $("#go").style.display = recs.length ? "inline-block" : "none";
+    $("#go").textContent = `Import ${n} booking${n === 1 ? "" : "s"} (no emails)`;
+    $("#go").disabled = n === 0;
+  };
+  $("#app").innerHTML = `<p class="mono"><a href="#/">← Clients</a></p><h1>Import from <em>PDFs</em></h1>
+  <p class="muted">Drop your old signed contracts (Pixieset PDFs) here. They're read in your browser, nothing is uploaded until you click Import. <strong>No emails are sent and nobody is asked to sign.</strong> Each PDF is attached to its contract.</p>
+  <label id="drop" class="card" style="display:block;text-align:center;padding:36px;border-style:dashed;cursor:pointer;text-transform:none;font:inherit">Drop PDF files here, or click to choose
+    <input id="files" type="file" accept="application/pdf" multiple style="display:none"></label>
+  <p id="msg" class="muted"></p><div id="recs"></div>
+  <p class="row"><button id="go" style="display:none">Import</button><a class="btn ghost" href="#/">Cancel</a></p>`;
+  const add = async (files) => {
+    const list = [...files].filter((f) => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
+    for (const f of list) {
+      $("#msg").textContent = `Reading ${f.name}…`;
+      try {
+        const buf = await f.arrayBuffer();
+        const p = parseBooking(await pdfLines(buf));
+        if (!p.name) throw new Error("couldn't find a client name");
+        const existing = S.clients.find((c) => p.email && c.email.toLowerCase() === p.email.toLowerCase());
+        const dup = !!existing && S.projects.some((x) => x.clientId === existing.id && x.date === p.date && x.price === p.price);
+        recs.push({ file: f, buf, p, existing, dup, include: !dup, depositPaid: true, balancePaid: false });
+      } catch (e) { toast(`${f.name}: ${e.message}`, true); }
+    }
+    $("#msg").textContent = recs.length ? "Check each booking, fix anything that looks wrong, untick any you don't want." : "";
+    draw();
+  };
+  $("#files").onchange = (e) => add(e.target.files);
+  const drop = $("#drop");
+  drop.ondragover = (e) => { e.preventDefault(); drop.style.borderColor = "var(--rose)"; };
+  drop.ondragleave = () => (drop.style.borderColor = "");
+  drop.ondrop = (e) => { e.preventDefault(); drop.style.borderColor = ""; add(e.dataTransfer.files); };
+  bind("#go", async () => {
+    $("#go").disabled = true;
+    for (const r of recs.filter((x) => x.include && !x.done)) {
+      const p = r.p;
+      try {
+        const res = await api("import-booking", "POST", {
+          clientId: r.existing?.id, client: { name: p.name, email: p.email },
+          project: { title: p.title, type: p.type, date: p.date, time: p.time, location: p.location, price: p.price, deposit: p.deposit, balanceDue: p.balanceDue, deliverables: p.services, extras: p.extras, status: "booked" },
+          signedDate: p.signedDate, depositPaid: r.depositPaid, balancePaid: r.balancePaid, createInvoices: p.price > 0,
+        });
+        const up = await fetch(`/studio/api/contract/${res.contractId}/pdf`, { method: "PUT", headers: { "Content-Type": "application/pdf" }, body: r.file });
+        r.done = true; r.status = up.ok ? "imported" : "imported (PDF not attached)"; r.statusOk = up.ok; r.include = false;
+      } catch (e) { r.status = "failed: " + e.message; r.statusOk = false; }
+      draw();
+    }
+    $("#go").disabled = false;
+    await refresh();
+    $("#msg").innerHTML = 'Done. <a href="#/">Back to clients</a> or <a href="#/calendar">see the calendar</a>.';
   });
 });
 
