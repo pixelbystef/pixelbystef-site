@@ -219,7 +219,9 @@ function parseBooking(rawLines) {
     m = s.match(/([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/); if (m && MONTHS[m[1].toLowerCase()]) return iso(+m[3], MONTHS[m[1].toLowerCase()], +m[2]);
     return "";
   };
-  const lines = rawLines.map((l) => l.replace(/^l\s+/, "").replace(/\s+:/g, ":").replace(/\s+/g, " ").trim()).filter(Boolean);
+  const tidy = (l) => l.replace(/^l\s+/, "").replace(/\s+:/g, ":").replace(/\s+/g, " ").trim();
+  const tagged = rawLines.map((l) => ({ bullet: /^l\s+/.test(l), t: tidy(l) })).filter((x) => x.t);
+  const lines = tagged.map((x) => x.t);
   const text = lines.join("\n");
   const after = (re) => { const m = text.match(re); return m ? m[1].trim() : ""; };
   const unknown = (v) => (/^(tbc|tbd|to be confirmed|n\/a|-)?$/i.test(v.trim()) ? "" : v.trim());
@@ -236,7 +238,12 @@ function parseBooking(rawLines) {
   // services: everything between "Description of Services:" and "As part of the Services"
   const si = lines.findIndex((l) => /^Description of Services:/.test(l));
   const ei = lines.findIndex((l, i) => i > si && /^As part of the Services/.test(l));
-  const services = si >= 0 ? lines.slice(si + 1, ei > si ? ei : si + 12).filter((l) => !/^[-–]+$/.test(l)) : [];
+  // a bullet that wraps onto a second line is one item, not two
+  const services = [];
+  if (si >= 0) for (const x of tagged.slice(si + 1, ei > si ? ei : si + 12)) {
+    if (/^[-–]+$/.test(x.t)) continue;
+    if (x.bullet || !services.length) services.push(x.t); else services[services.length - 1] += " " + x.t;
+  }
 
   // fees
   const ti = lines.findIndex((l) => /^Total Fee for Services:/.test(l));
@@ -334,7 +341,7 @@ route(/^\/import-pdf$/, () => {
         const p = parseBooking(await pdfLines(buf));
         if (!p.name) throw new Error("couldn't find a client name");
         const existing = S.clients.find((c) => p.email && c.email.toLowerCase() === p.email.toLowerCase());
-        const dup = !!existing && S.projects.some((x) => x.clientId === existing.id && x.date === p.date && x.price === p.price);
+        const dup = (!!existing && S.projects.some((x) => x.clientId === existing.id && x.date === p.date && x.price === p.price)) || recs.some((o) => o.p.email && o.p.email === p.email && o.p.date === p.date && o.p.price === p.price);
         recs.push({ file: f, buf, p, existing, dup, include: !dup, depositPaid: true, balancePaid: false });
       } catch (e) { toast(`${f.name}: ${e.message}`, true); }
     }
