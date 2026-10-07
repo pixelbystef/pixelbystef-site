@@ -77,7 +77,7 @@ async function go() {
   const nav = $("#nav");
   const sect = hash.split("/")[1] || "";
   nav.innerHTML = `<a class="logo" href="#/">pixelby<em>stef</em></a>` +
-    [["", "Clients"], ["contracts", "Contracts"], ["invoices", "Invoices"], ["templates", "Templates"], ["settings", "Settings"]]
+    [["", "Clients"], ["calendar", "Calendar"], ["contracts", "Contracts"], ["invoices", "Invoices"], ["templates", "Templates"], ["settings", "Settings"]]
       .map(([k, t]) => `<a class="tab ${sect === k || (k === "" && sect === "client") ? "on" : ""}" href="#/${k}">${t}</a>`).join("") +
     `<span class="sp"></span><a class="tab" href="/studio/logout">Sign out</a>`;
   if (!S) await refresh();
@@ -168,6 +168,34 @@ function projectForm(clientId, p = {}) {
 }
 
 // ---------- contracts ----------
+// ---------- calendar: all shoots in date order ----------
+route(/^\/calendar$/, () => {
+  const t = today();
+  const shoots = S.projects.filter((p) => p.date && p.status !== "lost").sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+  const upcoming = shoots.filter((p) => p.date >= t), past = shoots.filter((p) => p.date < t).reverse();
+  const undated = S.projects.filter((p) => !p.date && !["lost", "completed"].includes(p.status));
+  const row = (p) => {
+    const c = client(p.clientId);
+    const invs = S.invoices.filter((i) => i.projectId === p.id && i.published);
+    const owe = invs.reduce((s, i) => s + i.outstanding, 0);
+    const day = new Date(p.date + "T12:00:00Z");
+    const days = Math.round((day - new Date(t + "T12:00:00Z")) / 86400000);
+    const when = days === 0 ? "today" : days === 1 ? "tomorrow" : days > 1 && days <= 14 ? "in " + days + " days" : "";
+    return `<a class="card item row sb" href="#/client/${p.clientId}" style="text-decoration:none;color:inherit"><div class="row" style="gap:18px;flex-wrap:nowrap"><div style="min-width:64px;text-align:center"><div class="mono">${day.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div style="font:30px/1 var(--serif)">${day.getUTCDate()}</div></div>
+      <div><strong>${esc(p.title)}</strong> ${pill(p.status)}${when ? ` <span class="pill warn">${when}</span>` : ""}<br><span class="muted">${esc([p.time, p.location, c?.name].filter(Boolean).join(" · "))}</span></div></div>
+      <div class="muted" style="text-align:right">${p.price ? fmt(p.price) : ""}${invs.length ? `<br>${owe > 0 ? fmt(owe) + " to pay" : "all paid"}` : ""}</div></a>`;
+  };
+  const byMonth = (list) => {
+    let last = "";
+    return list.map((p) => { const m = new Date(p.date + "T12:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }); const h = m !== last ? `<h2>${m}</h2>` : ""; last = m; return h + row(p); }).join("");
+  };
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cal<em>endar</em></h1><p class="muted">Your shoots in date order. Click one to open the client.</p>
+    ${upcoming.length ? byMonth(upcoming) : '<p class="muted">No upcoming shoots. Add a date to a project and it appears here.</p>'}
+    ${undated.length ? `<h2>No date yet</h2>${undated.map((p) => `<a class="card item row sb" href="#/client/${p.clientId}" style="text-decoration:none;color:inherit"><div><strong>${esc(p.title)}</strong> ${pill(p.status)}<br><span class="muted">${esc(client(p.clientId)?.name || "")}</span></div></a>`).join("")}` : ""}
+    ${past.length ? `<h2>Past shoots</h2><div id="past" style="display:none">${past.map(row).join("")}</div><p><button class="ghost sm" id="showpast">Show ${past.length} past shoot${past.length === 1 ? "" : "s"}</button></p>` : ""}`;
+  bind("#showpast", () => { $("#past").style.display = "block"; $("#showpast").remove(); });
+});
+
 route(/^\/contracts$/, () => {
   const list = [...S.contracts].sort((a, b) => b.created.localeCompare(a.created));
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Con<em>tracts</em></h1><p class="muted">Create contracts from a client's page.</p>` +
@@ -236,7 +264,7 @@ route(/^\/invoice\/(new\/)?(\w+)$/, (isNew, id) => {
     document.querySelectorAll("[data-pn]").forEach((el) => (el.oninput = () => (parts[el.dataset.pn][el.dataset.k] = el.value)));
     document.querySelectorAll("[data-rm]").forEach((el) => (el.onclick = () => { items.splice(el.dataset.rm, 1); render(); }));
     document.querySelectorAll("[data-rmp]").forEach((el) => (el.onclick = () => { parts.splice(el.dataset.rmp, 1); render(); }));
-    document.querySelectorAll("[data-paid]").forEach((el) => (el.onchange = async () => { await api(`invoice/${inv.id}/part`, "POST", { index: +el.dataset.paid, paid: el.checked }); toast("Updated"); await reload(); }));
+    document.querySelectorAll("[data-paid]").forEach((el) => (el.onchange = async () => { const pr = await api(`invoice/${inv.id}/part`, "POST", { index: +el.dataset.paid, paid: el.checked }); toast(pr.booked ? "Marked paid. The shoot is now booked" : "Updated"); await reload(); }));
     bind("#additem", () => { items.push({ desc: "", qty: 1, amount: "" }); render(); });
   };
 

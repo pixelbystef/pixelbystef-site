@@ -878,7 +878,14 @@ async function handleApi(req, env, path) {
       p.paid = !!body.paid; p.paidAt = p.paid ? (isDate(body.paidAt) ? body.paidAt : today()) : "";
       delete inv.claim;
       await save(env, "invoice", inv);
-      return json({ ok: true, item: { ...inv, ...invStatus(inv) } });
+      // Deposit received: the shoot is booked (never moves a project that is already further along).
+      let booked = false;
+      const isDeposit = (inv.id && inv.id === (await load(env, "contract", inv.contractId))?.depositInvoiceId) || /deposit|retainer/i.test(p.label);
+      if (p.paid && isDeposit && inv.projectId) {
+        const proj = await load(env, "project", inv.projectId);
+        if (proj && ["enquiry", "proposal"].includes(proj.status)) { proj.status = "booked"; await save(env, "project", proj); booked = true; }
+      }
+      return json({ ok: true, booked, item: { ...inv, ...invStatus(inv) } });
     }
   }
 
