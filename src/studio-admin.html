@@ -103,7 +103,7 @@ route(/^\/$/, () => {
     }).join("") : `<p class="muted">No clients yet. Add your first one above.</p>`;
   };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cli<em>ents</em></h1>
-    <div class="row" style="margin:14px 0 20px"><input id="q" class="grow" placeholder="Search clients…"><button id="new">+ New client</button></div>
+    <div class="row" style="margin:14px 0 20px"><input id="q" class="grow" placeholder="Search clients…"><button id="new">+ New client</button><a class="btn ghost" href="#/import">Import existing booking</a></div>
     <div id="newform"></div><div id="list"></div>`;
   draw();
   $("#q").oninput = (e) => draw(e.target.value);
@@ -168,6 +168,43 @@ function projectForm(clientId, p = {}) {
 }
 
 // ---------- contracts ----------
+// ---------- import a booking that was signed elsewhere (no emails) ----------
+route(/^\/import$/, () => {
+  const d = S.defaults;
+  $("#app").innerHTML = `<p class="mono"><a href="#/">← Clients</a></p><h1>Import <em>booking</em></h1>
+  <p class="muted">For a booking already signed somewhere else (like Pixieset). This only records it. <strong>No emails are sent and the client isn't asked to sign.</strong></p>
+  <h2>Client</h2><div class="card">${select("client", "Client", [["", "New client…"], ...S.clients.map((c) => [c.id, c.name])], "")}
+    <div id="newclient" class="grid">${field("cname", "Full name")}${field("cemail", "Email", "", "email")}${field("cemail2", "Second email (optional)", "", "email")}${field("cphone", "Phone")}</div></div>
+  <h2>Shoot</h2><div class="card"><div class="grid">${field("title", "Title (e.g. Anna & Tom wedding)")}${select("type", "Type", ["Wedding", "Pre-wedding", "Proposal", "Elopement", "Engagement", "Family", "Other"].map((x) => [x, x]), "Wedding")}
+    ${field("date", "Date of shoot", "", "date")}${field("time", "Time")}${field("location", "Location")}${field("package", "Package")}
+    ${select("status", "Status", ["booked", "enquiry", "proposal", "shot", "delivered", "completed"].map((x) => [x, x]), "booked")}
+    ${field("price", "Total price", "", "number", 'step="0.01" min="0"')}${field("deposit", "Deposit", "", "number", 'step="0.01" min="0"')}${field("balanceDue", "Balance due date (defaults to shoot date)", "", "date")}</div>
+    ${area("deliverables", "Description of services (one per line)", "")}${area("extras", "Additional pricing lines (one per line)", "")}</div>
+  <h2>Signed contract</h2><div class="card"><div class="grid">${field("signedDate", "Date they signed", today(), "date")}${field("ctitle", "Contract title (optional)")}</div>
+    <p class="muted">You can attach the signed PDF from Pixieset after importing, on the contract page.</p></div>
+  <h2>Payments so far</h2><div class="card"><p class="muted">Deposit and balance invoices are created from the prices above and show on their client page. Tick what's already paid.</p>
+    <label style="text-transform:none;font:inherit;margin:4px 0"><input type="checkbox" id="f_depPaid"> Deposit already paid</label>
+    <label style="text-transform:none;font:inherit;margin:4px 0"><input type="checkbox" id="f_balPaid"> Balance already paid</label>
+    <label style="text-transform:none;font:inherit;margin:4px 0"><input type="checkbox" id="f_noinv"> Don't create invoices at all</label></div>
+  <p class="row"><button id="doimport">Import booking</button><a class="btn ghost" href="#/">Cancel</a></p>`;
+  const toggle = () => ($("#newclient").style.display = val("f_client") ? "none" : "grid");
+  $("#f_client").onchange = toggle; toggle();
+  bind("#doimport", async () => {
+    const body = {
+      clientId: val("f_client") || undefined, client: { name: val("f_cname"), email: val("f_cemail"), email2: val("f_cemail2"), phone: val("f_cphone") },
+      project: set({}, ["title", "type", "date", "time", "location", "package", "status", "price", "deposit", "balanceDue", "deliverables", "extras"]),
+      signedDate: val("f_signedDate"), contractTitle: val("f_ctitle"),
+      depositPaid: $("#f_depPaid").checked, balancePaid: $("#f_balPaid").checked, createInvoices: !$("#f_noinv").checked,
+    };
+    if (!body.clientId && !body.client.name) return toast("Add the client's name", true);
+    if (!body.project.title) return toast("Add a title for the shoot", true);
+    if (!body.signedDate) return toast("Add the date they signed", true);
+    const r = await api("import-booking", "POST", body);
+    toast("Imported. No emails were sent." + (r.invoices.length ? " Invoices: " + r.invoices.join(", ") : ""));
+    await refresh(); nav("/client/" + r.clientId);
+  });
+});
+
 // ---------- calendar: all shoots in date order ----------
 route(/^\/calendar$/, () => {
   const t = today();
@@ -210,7 +247,7 @@ route(/^\/contract\/(\w+)$/, async (id) => {
   $("#app").innerHTML = `<p class="mono"><a href="#/client/${x.clientId}">← ${esc(cl?.name || "Client")}</a></p><h1>${esc(x.title)}</h1><p>${pill(x.status)} <span class="muted">${esc(cl?.email || "no email on the client record")}</span></p>
   ${locked ? "" : '<p class="muted">Use merge fields like <code>{{client_name}}</code> — they are already filled in from the template. Lines starting with <code># </code> become headings; a blank line starts a new paragraph.</p>'}
   <div class="card">${field("title", "Title", x.title, "text", locked ? "disabled" : "")}${area("body", "Contract text", x.body, "big").replace("<textarea", locked ? "<textarea disabled" : "<textarea")}</div>
-  <p class="row">${locked ? `<a class="btn" href="/studio/api/contract/${id}/pdf" target="_blank">Signed PDF</a>` : `<button id="save">Save</button><button id="send">${x.status === "sent" ? "Save &amp; email again" : "Save &amp; email to client"}</button>`}
+  <p class="row">${locked ? (x.imported && !x.hasPdf ? `<label class="btn ghost" style="margin:0;text-transform:none;font:inherit;cursor:pointer">Attach the signed PDF<input id="pdffile" type="file" accept="application/pdf" style="display:none"></label>` : `<a class="btn" href="/studio/api/contract/${id}/pdf" target="_blank">Signed PDF</a>`) : `<button id="save">Save</button><button id="send">${x.status === "sent" ? "Save &amp; email again" : "Save &amp; email to client"}</button>`}
   ${x.status !== "draft" && x.status !== "void" ? `<button class="ghost" id="cl">Copy signing link</button>` : ""}
   ${x.status === "sent" ? '<button class="danger" id="void">Withdraw</button>' : ""}${x.status === "void" ? '<button class="ghost" id="reopen">Reopen as draft</button>' : ""}
   ${!locked ? '<button class="danger" id="del">Delete</button>' : ""}</p>
@@ -225,6 +262,13 @@ route(/^\/contract\/(\w+)$/, async (id) => {
     await persist(); const r = await api(`contract/${id}/send`, "POST", {});
     r.emailed ? toast("Sent to " + cl.email) : toast("Email failed: " + r.emailError + " — copy the link and send it yourself", true); await reload();
   });
+  const pf = $("#pdffile");
+  if (pf) pf.onchange = async () => {
+    const f = pf.files[0]; if (!f) return;
+    const r = await fetch(`/studio/api/contract/${id}/pdf`, { method: "PUT", headers: { "Content-Type": "application/pdf" }, body: f });
+    const j = await r.json().catch(() => ({})); if (!r.ok || j.error) return toast(j.error || "Upload failed", true);
+    toast("PDF attached"); await reload();
+  };
   bind("#cl", () => copy(link));
   bind("#void", async () => { if (confirm("Withdraw this contract? The link will stop working.")) { await api(`contract/${id}/void`, "POST", {}); await reload(); } });
   bind("#reopen", async () => { await api(`contract/${id}/reopen`, "POST", {}); await reload(); });

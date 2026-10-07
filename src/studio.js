@@ -414,11 +414,11 @@ function invStatus(inv) {
 }
 
 // ---------- invoices made by the app ----------
-async function createInvoice(env, { clientId, projectId, contractId, desc, label, amount, due, notes }) {
+async function createInvoice(env, { clientId, projectId, contractId, desc, label, amount, due, notes, issued }) {
   const s = await getSettings(env);
   const id = rid();
   const inv = {
-    id, created: new Date().toISOString(), clientId, projectId, contractId, issued: today(), methods: [], published: false, notes: notes || "",
+    id, created: new Date().toISOString(), clientId, projectId, contractId, issued: issued || today(), methods: [], published: false, notes: notes || "",
     items: [{ desc, qty: 1, amount }], parts: [{ label, amount, due, paid: false, paidAt: "" }],
     number: "INV-" + String(s.nextInvoice).padStart(4, "0"),
   };
@@ -549,8 +549,8 @@ async function contractPage(req, env, c, isPreview) {
   if (c.status === "void") return shell(c.title, `<p class="mono">Contract</p><h1>${esc(c.title)}</h1><p class="muted">This contract has been withdrawn. Please get in touch if you have questions.</p>`, "", settings);
   if (c.status === "signed") {
     return shell(c.title, `<p class="mono">Signed contract</p><h1>${esc(c.title)}</h1>
-<p class="muted">Signed by ${esc(c.signature.name)} on ${esc(niceStamp(c.signature.at))}. A copy was emailed to you.</p>
-<p><a class="btn" href="/sign/${c.token}/pdf">Download signed PDF</a></p>${doc}`, "", settings);
+<p class="muted">${c.imported ? `Signed on ${esc(niceDate(c.signature.at.slice(0, 10)))}.` : `Signed by ${esc(c.signature.name)} on ${esc(niceStamp(c.signature.at))}. A copy was emailed to you.`}</p>
+${!c.imported || c.hasPdf ? `<p><a class="btn" href="/sign/${c.token}/pdf">Download signed PDF</a></p>` : ""}${c.imported ? "" : doc}`, "", settings);
   }
   const canSign = c.status === "sent";
   return shell(c.title, `<p class="mono">Contract for ${esc(client?.name || "")}</p><h1>${esc(c.title)}</h1>
@@ -700,6 +700,20 @@ async function ensureDefaults(env) {
 async function handleApi(req, env, path) {
   const url = new URL(req.url);
   const origin = url.origin;
+  // Attach the signed PDF of an imported contract (raw file body, so handled before JSON parsing).
+  let pm;
+  if (req.method === "PUT" && (pm = path.match(/^contract\/([a-f0-9]+)\/pdf$/))) {
+    const c = await load(env, "contract", pm[1]);
+    if (!c || !c.imported) return json({ error: "Only imported contracts can have a PDF attached" }, 400);
+    const buf = await req.arrayBuffer();
+    if (buf.byteLength < 100 || buf.byteLength > 15 * 1024 * 1024) return json({ error: "The PDF must be under 15 MB" }, 400);
+    if (new TextDecoder().decode(buf.slice(0, 5)) !== "%PDF-") return json({ error: "That doesn't look like a PDF" }, 400);
+    await env.GALLERIES.put(`studio/pdf/${c.id}.pdf`, buf, { httpMetadata: { contentType: "application/pdf" } });
+    c.hasPdf = true;
+    c.audit.push({ t: new Date().toISOString(), e: "pdf attached", ip: ipOf(req), ua: uaOf(req), note: "signed copy uploaded" });
+    await save(env, "contract", c);
+    return json({ ok: true, item: c });
+  }
   const body = req.method === "POST" || req.method === "PUT" ? await req.json().catch(() => ({})) : {};
   const settings = await getSettings(env);
 
@@ -711,6 +725,51 @@ async function handleApi(req, env, path) {
       contracts: contracts.map(({ signature, ...c }) => ({ ...c, signedBy: signature?.name || "" })),
       invoices: invoices.map((i) => ({ ...i, ...invStatus(i) })),
     });
+  }
+  // Brings a booking that was signed elsewhere (e.g. Pixieset) into the studio. Sends no emails at all.
+  if (path === "import-booking" && req.method === "POST") {
+    const now = new Date().toISOString();
+    let cl = body.clientId ? await load(env, "client", body.clientId) : null;
+    if (!cl) {
+      const c = cleanClient(body.client || {});
+      if (!c.name) return json({ error: "Client name is required" }, 400);
+      cl = { id: rid(), created: now, ...c };
+      cl.token = await newToken(env, "client", cl.id);
+    }
+    const pr = cleanProject({ ...(body.project || {}), clientId: cl.id });
+    if (!pr.title) return json({ error: "Project title is required" }, 400);
+    if (!isDate(body.signedDate)) return json({ error: "Signed date is required" }, 400);
+    if (!STATUSES.includes(body.project?.status)) pr.status = "booked";
+    await save(env, "client", cl);
+    const project = await save(env, "project", { id: rid(), created: now, ...pr });
+    const signedAt = body.signedDate + "T12:00:00.000Z";
+    const contract = {
+      id: rid(), created: signedAt, clientId: cl.id, projectId: project.id, title: line(body.contractTitle, 160) || `${cl.name} Contract`,
+      body: "This booking was signed before the studio manager was set up. The signed copy is attached.", status: "signed", imported: true, hasPdf: false, signedAt,
+      signature: { name: cl.name, mode: "imported", at: signedAt, ip: "-", ua: "" }, hash: "",
+      audit: [{ t: now, e: "imported", ip: ipOf(req), ua: uaOf(req), note: `signed earlier on ${body.signedDate}; no emails sent` }],
+    };
+    contract.token = await newToken(env, "contract", contract.id);
+    const made = [];
+    const price = money(project.price), dep = money(project.deposit);
+    if (body.createInvoices !== false && price > 0) {
+      const common = { clientId: cl.id, projectId: project.id, contractId: contract.id, issued: body.signedDate };
+      const quiet = async (inv, paid, paidAt) => {
+        inv.published = true; inv.sentAt = signedAt;
+        if (paid) { inv.parts[0].paid = true; inv.parts[0].paidAt = isDate(paidAt) ? paidAt : body.signedDate; }
+        await save(env, "invoice", inv); made.push(inv); return inv;
+      };
+      if (dep > 0 && dep < price) {
+        const d = await quiet(await createInvoice(env, { ...common, desc: `Deposit: ${project.title}`, label: "Deposit", amount: dep, due: body.signedDate }), !!body.depositPaid, body.depositPaidDate);
+        const b = await quiet(await createInvoice(env, { ...common, desc: `Remaining balance: ${project.title}`, label: "Balance", amount: money(price - dep), due: project.balanceDue || project.date || body.signedDate }), !!body.balancePaid, body.balancePaidDate);
+        contract.depositInvoiceId = d.id; contract.balanceInvoiceId = b.id;
+      } else {
+        const b = await quiet(await createInvoice(env, { ...common, desc: project.title, label: "Payment in full", amount: price, due: project.balanceDue || project.date || body.signedDate }), !!body.balancePaid, body.balancePaidDate);
+        contract.balanceInvoiceId = b.id;
+      }
+    }
+    await save(env, "contract", contract);
+    return json({ ok: true, clientId: cl.id, projectId: project.id, contractId: contract.id, invoices: made.map((i) => i.number) });
   }
   if (path === "settings" && req.method === "POST") {
     const s = {
