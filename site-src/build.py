@@ -470,7 +470,7 @@ def build():
     <div class="sub"><span>[laughing] okay wait, is it already rolling?</span></div>
   </section>
   <section class="hero-copy wrap">
-    <p class="mono">Cinematic wedding &amp; couples photographer</p>
+    <p class="mono">Cinematic wedding &amp; couples photographer and videographer</p>
     <h1>Your love story, but make it a <em>movie.</em></h1>
     <p>Photos and films for couples who'd rather laugh than pose. Based in Edinburgh &amp; London, happy to jump on a plane.</p>
     <div class="cta-row"><a class="btn" href="/contact">Let's chat</a><a class="btn ghost" href="/films">See the films</a></div>
@@ -517,8 +517,8 @@ def build():
   <section class="closing" id="chat">{img(cl[0], cl[1])}
     <div class="over"><h2>Got a date? Let's make it a <em>good one.</em></h2><p>Tell me about you two. Coffee's on me, or a video call if you're far away.</p><a class="btn light" href="/contact">Let's chat</a></div>
   </section>"""
-    page('index.html', 'pixelbystef · Cinematic wedding & couples photographer, Edinburgh & London',
-         "Cinematic wedding and couples photographer and filmmaker based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
+    page('index.html', 'pixelbystef · Cinematic wedding & couples photographer and videographer, Edinburgh & London',
+         "Cinematic wedding and couples photographer and videographer based in Edinburgh and London. Photos and films for couples who'd rather laugh than pose.", m, '/')
 
     # ---------- WEDDINGS ----------
     body = phero('Weddings · film', 'The whole day. The full <em>film.</em>',
@@ -642,7 +642,7 @@ def build():
     body += '</div></section>'
     body += gallery(P('about.gallery'))
     body += cta()
-    page('about.html', 'About Stefan · pixelbystef', 'Stefan Wijaya: physicist by training, cinematic wedding and couples photographer and filmmaker based in Edinburgh and London.', body, '/about', P('about.photos')[0][0])
+    page('about.html', 'About Stefan · pixelbystef', 'Stefan Wijaya: physicist by training, cinematic wedding and couples photographer and videographer based in Edinburgh and London.', body, '/about', P('about.photos')[0][0])
 
     # ---------- FAQ ----------
     faqs = [
