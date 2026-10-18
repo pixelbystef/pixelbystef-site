@@ -93,7 +93,16 @@ const bind = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
 route(/^\/$/, () => {
   const outstanding = (id) => S.invoices.filter((i) => i.clientId === id && i.published).reduce((s, i) => s + i.outstanding, 0);
   const draw = (q = "") => {
-    const list = S.clients.filter((c) => (c.name + c.email).toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
+    // Soonest upcoming shoot first, then clients with no date yet, then past shoots (most recent first).
+    const key = (c) => {
+      const ds = S.projects.filter((p) => p.clientId === c.id && p.date && p.status !== "lost").map((p) => p.date).sort();
+      const next = ds.find((d) => d >= today());
+      return next ? [0, next] : ds.length ? [2, ds[ds.length - 1]] : [1, ""];
+    };
+    const list = S.clients.filter((c) => (c.name + c.email).toLowerCase().includes(q.toLowerCase())).sort((a, b) => {
+      const [ga, da] = key(a), [gb, db] = key(b);
+      return ga - gb || (ga === 2 ? db.localeCompare(da) : da.localeCompare(db)) || a.name.localeCompare(b.name);
+    });
     $("#list").innerHTML = list.length ? list.map((c) => {
       const ps = S.projects.filter((p) => p.clientId === c.id);
       const nextP = ps.filter((p) => p.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0] || ps[0];
