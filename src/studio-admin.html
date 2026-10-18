@@ -34,6 +34,7 @@ button.danger{background:transparent;color:#9b3b3b;border:1px solid #e6c4c4}butt
 table{width:100%;border-collapse:collapse}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:400}.r{text-align:right}
 td input{padding:6px 8px}.item{cursor:pointer}.item:hover{border-color:var(--rose)}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10;max-width:90vw}#toast.on{opacity:1}#toast.err{background:#9b3b3b}
+select.stsel{width:auto;margin-left:6px;font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border:0;border-radius:99px;background:var(--rose-soft);color:var(--rose);cursor:pointer;vertical-align:middle}select.stsel.ok{background:#dfeadf;color:#3c6b3c}select.stsel.bad{background:#f3dcdc;color:#9b3b3b}
 code{background:var(--paper-2);padding:1px 6px;border-radius:5px;font-size:13px}.link{font:12.5px var(--mono);word-break:break-all;background:var(--paper-2);padding:8px 12px;border-radius:10px}
 </style>
 </head>
@@ -53,6 +54,9 @@ const client = (id) => S.clients.find((c) => c.id === id);
 const project = (id) => S.projects.find((p) => p.id === id);
 const pill = (s) => `<span class="pill ${{ paid: "ok", signed: "ok", booked: "ok", delivered: "ok", completed: "ok", overdue: "bad", void: "bad", lost: "bad" }[s] || (s === "draft" ? "" : "warn")}">${esc(s)}</span>`;
 
+const STATUS_LIST = ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"];
+// A status pill you can change in place (the row itself is a link, so clicks on it are handled separately).
+const statusSelect = (p) => `<select class="stsel ${{ booked: "ok", delivered: "ok", completed: "ok", lost: "bad" }[p.status] || ""}" data-status="${p.id}" title="Change status">${STATUS_LIST.map((x) => `<option ${x === p.status ? "selected" : ""}>${x}</option>`).join("")}</select>`;
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "on" + (err ? " err" : ""); clearTimeout(toast.t); toast.t = setTimeout(() => (t.className = ""), err ? 6000 : 2500); }
 async function api(path, method = "GET", body) {
   const r = await fetch("/studio/api/" + path, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -107,8 +111,8 @@ route(/^\/$/, () => {
       const ps = S.projects.filter((p) => p.clientId === c.id);
       const nextP = ps.filter((p) => p.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0] || ps[0];
       const owe = outstanding(c.id);
-      return `<a class="card item row sb" href="#/client/${c.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(c.name)}</strong><br><span class="muted">${esc(c.email || "no email")}</span></div>
-      <div class="muted">${nextP ? esc(nextP.title) + (nextP.date ? " · " + nice(nextP.date) : "") + " " + pill(nextP.status) : "No project yet"}${owe > 0 ? ` · <strong>${fmt(owe)}</strong> outstanding` : ""}${S.invoices.some((i) => i.clientId === c.id && i.claimed) ? ' <span class="pill warn">says paid: check</span>' : ""}</div></a>`;
+      return `<div class="card item row sb" data-href="#/client/${c.id}"><div><strong>${esc(c.name)}</strong><br><span class="muted">${esc(c.email || "no email")}</span></div>
+      <div class="muted">${nextP ? esc(nextP.title) + (nextP.date ? " · " + nice(nextP.date) : "") + " " + statusSelect(nextP) : "No project yet"}${owe > 0 ? ` · <strong>${fmt(owe)}</strong> outstanding` : ""}${S.invoices.some((i) => i.clientId === c.id && i.claimed) ? ' <span class="pill warn">says paid: check</span>' : ""}</div></div>`;
     }).join("") : `<p class="muted">No clients yet. Add your first one above.</p>`;
   };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cli<em>ents</em></h1>
@@ -396,9 +400,9 @@ route(/^\/calendar$/, () => {
     const day = new Date(p.date + "T12:00:00Z");
     const days = Math.round((day - new Date(t + "T12:00:00Z")) / 86400000);
     const when = days === 0 ? "today" : days === 1 ? "tomorrow" : days > 1 && days <= 14 ? "in " + days + " days" : "";
-    return `<a class="card item row sb" href="#/client/${p.clientId}" style="text-decoration:none;color:inherit"><div class="row" style="gap:18px;flex-wrap:nowrap"><div style="min-width:64px;text-align:center"><div class="mono">${day.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div style="font:30px/1 var(--serif)">${day.getUTCDate()}</div></div>
-      <div><strong>${esc(p.title)}</strong> ${pill(p.status)}${when ? ` <span class="pill warn">${when}</span>` : ""}<br><span class="muted">${esc([p.time, p.location, c?.name].filter(Boolean).join(" · "))}</span></div></div>
-      <div class="muted" style="text-align:right">${p.price ? fmt(p.price) : ""}${invs.length ? `<br>${owe > 0 ? fmt(owe) + " to pay" : "all paid"}` : ""}</div></a>`;
+    return `<div class="card item row sb" data-href="#/client/${p.clientId}"><div class="row" style="gap:18px;flex-wrap:nowrap"><div style="min-width:64px;text-align:center"><div class="mono">${day.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div style="font:30px/1 var(--serif)">${day.getUTCDate()}</div></div>
+      <div><strong>${esc(p.title)}</strong> ${statusSelect(p)}${when ? ` <span class="pill warn">${when}</span>` : ""}<br><span class="muted">${esc([p.time, p.location, c?.name].filter(Boolean).join(" · "))}</span></div></div>
+      <div class="muted" style="text-align:right">${p.price ? fmt(p.price) : ""}${invs.length ? `<br>${owe > 0 ? fmt(owe) + " to pay" : "all paid"}` : ""}</div></div>`;
   };
   const byMonth = (list) => {
     let last = "";
@@ -406,7 +410,7 @@ route(/^\/calendar$/, () => {
   };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cal<em>endar</em></h1><p class="muted">Your shoots in date order. Click one to open the client.</p>
     ${upcoming.length ? byMonth(upcoming) : '<p class="muted">No upcoming shoots. Add a date to a project and it appears here.</p>'}
-    ${undated.length ? `<h2>No date yet</h2>${undated.map((p) => `<a class="card item row sb" href="#/client/${p.clientId}" style="text-decoration:none;color:inherit"><div><strong>${esc(p.title)}</strong> ${pill(p.status)}<br><span class="muted">${esc(client(p.clientId)?.name || "")}</span></div></a>`).join("")}` : ""}
+    ${undated.length ? `<h2>No date yet</h2>${undated.map((p) => `<div class="card item row sb" data-href="#/client/${p.clientId}"><div><strong>${esc(p.title)}</strong> ${statusSelect(p)}<br><span class="muted">${esc(client(p.clientId)?.name || "")}</span></div></div>`).join("")}` : ""}
     ${past.length ? `<h2>Past shoots</h2><div id="past" style="display:none">${past.map(row).join("")}</div><p><button class="ghost sm" id="showpast">Show ${past.length} past shoot${past.length === 1 ? "" : "s"}</button></p>` : ""}`;
   bind("#showpast", () => { $("#past").style.display = "block"; $("#showpast").remove(); });
 });
@@ -597,6 +601,23 @@ route(/^\/settings$/, () => {
   bind("#savekey", async () => { const k = $("#newkey").value; if (k.length < 8) return toast("Use at least 8 characters", true); await api("studio-key", "POST", { key: k }); $("#newkey").value = ""; toast("Studio key changed"); });
   bind("#addm", () => { methods.push({ id: "", name: "", link: "", instructions: "" }); render(); });
   bind("#save", async () => { await api("settings", "POST", { ...set({}, ["businessName", "ownerName", "email", "fromEmail", "currency", "nextInvoice", "signerName", "address", "emailFooter"]), methods, signerStrokes: strokes }); toast("Saved"); await reload(); });
+});
+
+// Rows with data-href act like links, except for the status dropdown inside them.
+document.addEventListener("click", (e) => {
+  if (e.target.closest("select")) return;
+  const row = e.target.closest("[data-href]");
+  if (row) location.hash = row.dataset.href;
+});
+document.addEventListener("change", async (e) => {
+  const sel = e.target.closest && e.target.closest("select[data-status]");
+  if (!sel) return;
+  const id = sel.dataset.status, status = sel.value, y = window.scrollY, q = $("#q") && $("#q").value;
+  try { await api(`project/${id}/status`, "POST", { status }); } catch { await go(); return; }
+  const pr = project(id); if (pr) pr.status = status;
+  toast(`${pr ? pr.title + ": " : ""}${status}`);
+  await go(); window.scrollTo(0, y);
+  if (q && $("#q")) { $("#q").value = q; $("#q").dispatchEvent(new Event("input")); }
 });
 
 go();

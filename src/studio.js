@@ -967,6 +967,16 @@ async function handleApi(req, env, path) {
     return json({ url: url2, formula: `=IMPORTDATA("${url2}")` });
   }
 
+  // Quick status change from the lists
+  if (type === "project" && id && action === "status" && req.method === "POST") {
+    const proj = await load(env, "project", id);
+    if (!proj) return json({ error: "Not found" }, 404);
+    if (!STATUSES.includes(body.status)) return json({ error: "Unknown status" }, 400);
+    proj.status = body.status;
+    await save(env, "project", proj);
+    return json({ ok: true, item: proj });
+  }
+
   // Send the portal link
   if (type === "client" && id && action === "portal" && req.method === "POST") {
     const client = await load(env, "client", id);
