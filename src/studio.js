@@ -257,7 +257,7 @@ const CONTRACT_BODY = (what, companion = "partner") => `# Photography Services A
 
 ## 1. Engagement of Photographer
 
-1.1 **Services.** Subject to the terms set out herein, Client engages Photographer to provide, and Photographer agrees to provide, the photography services described in this Section 1.1 (the "**Services**") in connection with the ${what} of **{{client_name}}** and Client's ${companion} (the "**Session**").
+1.1 **Services.** Subject to the terms set out herein, Client engages Photographer to provide, and Photographer agrees to provide, the photography services described in this Section 1.1 (the "**Services**") in connection with the ${what} of **{{client_name}}** ${companion ? `and Client's ${companion} ` : ""}(the "**Session**").
 
 Date of Session: **{{session_date}}**
 Time of Session: **{{session_time}}**
@@ -481,6 +481,7 @@ const DEFAULT_TEMPLATES = [
   { name: "Elopement", body: CONTRACT_BODY("elopement") },
   { name: "Couple / engagement session", body: CONTRACT_BODY("photoshoot") },
   { name: "Family", body: CONTRACT_BODY("family photoshoot", "family") },
+  { name: "Portrait", body: CONTRACT_BODY("portrait photoshoot", "") },
   { name: "Camera operator (crew)", body: CREW_BODY },
 ];
 
@@ -801,8 +802,8 @@ ${error ? `<p style="color:var(--rose)">${esc(error)}</p>` : ""}<button class="b
 
 async function ensureDefaults(env) {
   // Adds any built-in template that is missing (by name); never touches templates you already have.
-  if (await env.GALLERIES.head("studio/seeded-v5")) return;
-  await env.GALLERIES.put("studio/seeded-v5", "1");
+  if (await env.GALLERIES.head("studio/seeded-v6")) return;
+  await env.GALLERIES.put("studio/seeded-v6", "1");
   const have = new Set((await listAll(env, "template")).map((t) => t.name));
   for (const t of DEFAULT_TEMPLATES) if (!have.has(t.name)) await save(env, "template", { id: rid(), ...t, created: new Date().toISOString() });
 }
