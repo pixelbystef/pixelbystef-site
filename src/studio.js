@@ -368,6 +368,112 @@ As part of the Services, the Photographer will produce or take similar action to
 
 10.6 **Severability.** If any provision of this Agreement is determined to be illegal, invalid or unenforceable, in whole or in part, by an arbitrator or any court of competent jurisdiction, that provision or part thereof will be severed from this Agreement and the remaining part of such provision and all other provisions will continue in full force and effect.`;
 
+// For freelance camera-operator jobs: filming only, no editing, client owns the film, operator keeps a copy of the raw footage for promotion.
+const CREW_BODY = `# Camera Operator Services Agreement
+
+**THIS AGREEMENT** is made as of {{today}} (the "**Effective Date**") between **{{client_name}}** ("**Client**") and **{{business_name}}** ("**Camera Operator**").
+
+## 1. Engagement of Camera Operator
+
+1.1 **Services.** Subject to the terms set out herein, Client engages Camera Operator to provide, and Camera Operator agrees to provide, the camera operating services described in this Section 1.1 (the "**Services**") on the video production **{{project_title}}** (the "**Production**").
+
+First day of filming: **{{session_date}}**
+Dates and hours: **{{session_time}}**
+Location: **{{location}}**
+Description of Services:
+{{deliverables_list}}
+
+1.2 **Role.** Camera Operator acts as camera operator only. Client (or its director or producer) is responsible for the creative direction, shot list, schedule and the finished film. Camera Operator will follow the reasonable direction of Client during filming. Camera Operator is not responsible for editing, colour grading, music, sound design or any other post-production, or for the final film.
+
+"**Footage**" means all video, audio and still material recorded by Camera Operator under this Agreement, in any format or medium.
+
+## 2. Fees and Deposit
+
+2.1 **Fees.** Client will pay Camera Operator the fees set out herein in this Section 2.1 ("**Fees**"), including any applicable taxes due on such Fees.
+- Total Fee for Services: **{{price}}**
+- Additional Pricing:
+{{extras_list}}
+- Deposit due upon signing: **{{deposit}}**
+- Remaining amount due on **{{balance_due_date}}**: **{{balance}}** + remaining additional pricing
+
+2.2 **Deposit.** Client acknowledges and agrees that the deposit amount set out above is due upon the signing of this Agreement and is not refundable ("**Deposit**"), so as to fairly compensate Camera Operator for reserving the dates and turning down other work. The Deposit will be credited towards the total Fees payable by Client. The deposit is due 24 hours after the deposit invoice is sent to the Client. If the deposit is not paid by the due date, this contract is void.
+
+2.3 **Invoice.** Camera Operator will issue invoices to Client for the amounts set out in Section 2.1 ("**Invoice**"). Client agrees to pay all Fees on or prior to the due dates set out in Section 2.1. Any payment after the due date will incur a late fee of 5% per month on the outstanding balance. No additional charges will be incurred without prior agreement from the Client, except for overtime billed at the rate specified in Section 2.1.
+
+## 3. Client Responsibilities
+
+3.1 **Permissions and Access.** Client will ensure that all permissions, releases and licences needed for the Production have been obtained before filming, including permission from venues and locations, access for Camera Operator and equipment, and consent from people who appear in the Footage.
+
+3.2 **Expenses.** Client will provide the means of travel or be responsible for reasonable travel and accommodation expenses incurred by Camera Operator that are necessary for the Services, where the filming location is not in the city of {{location}}.
+
+3.3 **Meals and Breaks.** Client will provide Camera Operator with a meal and reasonable breaks on each filming day, or be responsible for reasonable meal expenses incurred for which Camera Operator shall provide a receipt.
+
+3.4 **Safety.** Client will provide a safe working environment. Camera Operator may pause or stop filming if conditions are unsafe, without penalty, and the Fees remain payable for the booked time.
+
+3.5 **Waiver.** Client (on behalf of itself and any other participant whose image or recording may be captured by the Services) releases Camera Operator from any claim relating to the filming of the Footage and its use as set out in this Agreement.
+
+## 4. Camera Operator Responsibilities
+
+4.1 **Equipment.** Camera Operator will bring his own camera equipment as agreed with Client before filming, unless otherwise agreed in writing.
+
+4.2 **Manner of Service.** Camera Operator will ensure that the Services are performed in a good, workmanlike and safe manner, and in such a manner as to avoid unreasonable interference with Client's activities.
+
+4.3 **Delivery of Footage.** Camera Operator will deliver the unedited Footage to Client within 7 days of the final day of filming, by online download link or on a storage drive, as agreed with Client.
+
+4.4 **No Editing or Revisions.** Editing, revisions and post-production are not included in the Services. Any such work requested by Client will only be done if agreed in writing and may be subject to additional fees.
+
+4.5 **Overtime.** Filming beyond the hours stated in Section 1.1 will only take place if agreed on the day, and will be billed at the additional hourly rate set out in Section 2.1.
+
+## 5. Artistic Release
+
+5.1 **Style.** Client acknowledges that Camera Operator will use his professional judgement in framing, camera movement and technical choices while operating, within the direction given by Client. Disagreement with those choices is not a valid reason for termination of this Agreement or for any money to be returned.
+
+## 6. Term and Termination
+
+6.1 **Term.** This Agreement will begin on the Effective Date and continue until the latter of (i) the date where all outstanding Fees under this Agreement are paid in full; or (ii) the date where the Footage has been delivered ("**Term**").
+
+6.2 **Cancellation.** Client may terminate the Agreement ("**Cancellation**") and/or reschedule the Services ("**Rescheduling**") by providing Camera Operator with written notice no later than 14 days before the first day of filming (the "**Minimum Notice**"). Client is not relieved of any payment obligations for Cancellation and Rescheduling unless the Minimum Notice is duly provided or unless the parties otherwise agree in writing.
+
+6.3 **Rescheduling.** In the event of Rescheduling, Camera Operator will use commercially reasonable efforts to accommodate Client's change. If Camera Operator is not able to accommodate the change, it will be treated as a Cancellation by Client.
+
+6.4 **No Refund.** Cancellation by Client will not result in a refund of any fees paid on or prior to the date of Cancellation.
+
+6.5 **Replacement.** If Camera Operator is unable to perform the Services, he will, subject to Client's consent (which is not to be unreasonably withheld), arrange a replacement camera operator. If consent is not given, Camera Operator will terminate this Agreement and return the Deposit and all fees paid by Client, and will have no further liability to Client.
+
+## 7. Ownership and Use of Footage
+
+7.1 **Client's Ownership.** Client owns the finished film and the Footage delivered to it under this Agreement.
+
+7.2 **Camera Operator's Use.** Camera Operator may keep a copy of the Footage, and may use and edit it for his own portfolio, showreel, website, social media and promotion of his services, in any format or medium, without payment. Client acknowledges that no other person or entity has any rights that would prevent Camera Operator from doing so. Camera Operator will not use the Footage in a way that discloses confidential information of Client that was not already public.
+
+7.3 **Credit.** Where reasonably practicable, Client will credit Camera Operator as camera operator on the finished film.
+
+## 8. Indemnity and Limitation of Liability
+
+8.1 **Indemnification.** Client agrees to indemnify and hold harmless Camera Operator for any injury, property damage, liability, claim or other cause of action arising out of the Production, other than that caused by Camera Operator's own negligence.
+
+8.2 **Force Majeure.** Neither party shall be held in breach of or liable under this Agreement for any delay or non-performance caused by illness, emergency, fire, strike, pandemic, severe weather, or any other conditions beyond the reasonable control of the non-performing party, and the time of performance shall be extended for the duration of those conditions. If such an event persists for more than 60 days, the party not affected may terminate the Agreement and any prepaid fees for Services not performed (other than the Deposit) shall be returned within 15 days.
+
+8.3 **Failure to Deliver.** Camera Operator shall not be liable for delays in delivery, or for Footage that cannot be delivered, due to technical malfunctions or service interruptions beyond his control, or due to the actions of Client or others at the Production.
+
+8.4 **Maximum Liability.** Camera Operator's maximum liability arising out of or related to the Services or the Footage shall not exceed the total Fees payable under this Agreement.
+
+## 9. General
+
+9.1 **Notice.** Parties shall provide effective notice ("**Notice**") to each other by email at the date and time the Notice is sent:
+- Camera Operator's Email: {{business_email}}
+- Client's Email: {{client_email}}
+
+9.2 **Survival.** Articles 7, 8 and 9 will survive termination of this Agreement.
+
+9.3 **Governing Law.** This Agreement will be governed by the laws of **Scotland.**
+
+9.4 **Amendment.** This Agreement may only be amended, supplemented or otherwise modified by written agreement signed by each of the parties.
+
+9.5 **Entire Agreement.** This Agreement constitutes the entire agreement between the parties with respect to the Services and supersedes all prior agreements and understandings both formal and informal.
+
+9.6 **Severability.** If any provision of this Agreement is determined to be illegal, invalid or unenforceable, in whole or in part, by a court of competent jurisdiction, that provision or part thereof will be severed from this Agreement and the remaining provisions will continue in full force and effect.`;
+
 const DEFAULT_TEMPLATES = [
   { name: "Proposal", body: CONTRACT_BODY("proposal photoshoot") },
   { name: "Wedding", body: CONTRACT_BODY("wedding") },
@@ -375,6 +481,7 @@ const DEFAULT_TEMPLATES = [
   { name: "Elopement", body: CONTRACT_BODY("elopement") },
   { name: "Couple / engagement session", body: CONTRACT_BODY("photoshoot") },
   { name: "Family", body: CONTRACT_BODY("family photoshoot", "family") },
+  { name: "Camera operator (crew)", body: CREW_BODY },
 ];
 
 // ---------- sanitisers ----------
@@ -694,8 +801,8 @@ ${error ? `<p style="color:var(--rose)">${esc(error)}</p>` : ""}<button class="b
 
 async function ensureDefaults(env) {
   // Adds any built-in template that is missing (by name); never touches templates you already have.
-  if (await env.GALLERIES.head("studio/seeded-v4")) return;
-  await env.GALLERIES.put("studio/seeded-v4", "1");
+  if (await env.GALLERIES.head("studio/seeded-v5")) return;
+  await env.GALLERIES.put("studio/seeded-v5", "1");
   const have = new Set((await listAll(env, "template")).map((t) => t.name));
   for (const t of DEFAULT_TEMPLATES) if (!have.has(t.name)) await save(env, "template", { id: rid(), ...t, created: new Date().toISOString() });
 }
