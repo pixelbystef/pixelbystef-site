@@ -138,7 +138,7 @@ function galleryPage(g, favs) {
     rawOpen: raw,
     rawUntil: raw ? niceDate(g.raw_until) : "",
     photos: g.photos.map((p) => {
-      const o = { id: p.id, w: p.w, h: p.h, hi: [p.high.name, p.high.size, p.high.w, p.high.h] };
+      const o = { id: p.id, w: p.w, h: p.h, v: (p.high.crc >>> 0).toString(36), hi: [p.high.name, p.high.size, p.high.w, p.high.h] };
       if (p.web) o.web = [p.web.name, p.web.size, p.web.w, p.web.h];
       if (p.raw) o.raw = [p.raw.name, p.raw.size];
       return o;
@@ -157,7 +157,7 @@ function galleryPage(g, favs) {
     slug: esc(g.slug),
     eyebrow: esc(eyebrowText(g)),
     title: rich(g.title.replace("&", "*&*")),
-    cover: cover ? `/g/${g.slug}/p/${encodeURIComponent(cover)}.jpg` : "",
+    cover: cover ? `/g/${g.slug}/p/${encodeURIComponent(cover)}.jpg?v=${((g.photos.find((p) => p.id === cover)?.high.crc ?? 0) >>> 0).toString(36)}` : "",
     cover_pos: esc(g.cover_position || "50% 50%"),
     note_eyebrow: rich(g.note_eyebrow || ""),
     heading: rich(g.heading || ""),

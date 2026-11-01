@@ -280,7 +280,7 @@ if (G.films.length) {
 function tile(i){
   var p = P[i], f = favs[p.id];
   return '<figure class="tile' + (f ? ' fav' : '') + '" data-i="' + i + '" style="--r:' + (p.w / p.h).toFixed(4) + '">' +
-    '<img src="' + BASE + '/t/' + encodeURIComponent(p.id) + '.jpg" width="' + p.w + '" height="' + p.h + '" loading="lazy" alt="Photo ' + (i+1) + '">' +
+    '<img src="' + BASE + '/t/' + encodeURIComponent(p.id) + '.jpg?v=' + p.v + '" width="' + p.w + '" height="' + p.h + '" loading="lazy" alt="Photo ' + (i+1) + '">' +
     '<figcaption class="ov"><span class="name">' + esc(p.id) + '</span><span class="acts">' +
     '<button class="round heart" type="button" data-act="fav" aria-pressed="' + !!f + '" aria-label="Favourite">' + HEART + '</button>' +
     '<button class="round" type="button" data-act="dl" aria-label="Download">' + DL + '</button></span></figcaption></figure>';
@@ -325,11 +325,11 @@ $('gallery').addEventListener('click', function(e){
 // viewer
 function showLb(){
   var i = state.view[state.idx], p = P[i];
-  $('lbImg').src = BASE + '/p/' + encodeURIComponent(p.id) + '.jpg';
+  $('lbImg').src = BASE + '/p/' + encodeURIComponent(p.id) + '.jpg?v=' + p.v;
   $('lbImg').alt = 'Photo ' + (i+1);
   $('lbPos').textContent = (state.idx+1) + ' / ' + state.view.length + ' · ' + p.id;
   $('lbHeart').setAttribute('aria-pressed', !!favs[p.id]);
-  [state.idx-1, state.idx+1].forEach(function(k){ if (state.view[k] != null){ var im = new Image(); im.src = BASE + '/p/' + encodeURIComponent(P[state.view[k]].id) + '.jpg'; } });
+  [state.idx-1, state.idx+1].forEach(function(k){ if (state.view[k] != null){ var im = new Image(); im.src = BASE + '/p/' + encodeURIComponent(P[state.view[k]].id) + '.jpg?v=' + P[state.view[k]].v; } });
 }
 function openLb(k){ state.idx = Math.max(0, k); $('lb').hidden = false; document.body.style.overflow = 'hidden'; showLb(); $('lbClose').focus(); }
 function closeLb(){ $('lb').hidden = true; document.body.style.overflow = ''; }
