@@ -87,6 +87,20 @@ async function listMany(env, types) {
   for (const t of types) out.push(await listAll(env, t));
   return out;
 }
+// A shoot being marked "booked" means its deposit has been received: mark any unpaid deposit/retainer payment as paid.
+// A draft deposit invoice becomes visible (without any email) so it shows as paid.
+async function markDepositsPaid(env, projectId) {
+  let n = 0;
+  for (const inv of await listAll(env, "invoice")) {
+    if (inv.projectId !== projectId) continue;
+    let changed = false;
+    for (const part of inv.parts) {
+      if (!part.paid && /deposit|retainer/i.test(part.label)) { part.paid = true; part.paidAt = today(); changed = true; n++; }
+    }
+    if (changed) { delete inv.claim; inv.published = true; inv.sentAt = inv.sentAt || new Date().toISOString(); await save(env, "invoice", inv); }
+  }
+  return n;
+}
 async function byToken(env, type, token) {
   if (!/^[a-f0-9]{32}$/.test(token || "")) return null;
   const o = await env.GALLERIES.get(`studio/tok/${token}`);
@@ -803,6 +817,7 @@ async function handleApi(req, env, path) {
       const p = cleanProject(body);
       if (!p.clientId || !p.title) return json({ error: "Client and title are required" }, 400);
       obj = { ...(existing || { id: rid(), created: now }), ...p };
+      if (existing && existing.status !== "booked" && p.status === "booked") await markDepositsPaid(env, obj.id);
     } else if (type === "template") {
       const t = cleanTemplate(body);
       if (!t.name) return json({ error: "Name is required" }, 400);
@@ -972,9 +987,11 @@ async function handleApi(req, env, path) {
     const proj = await load(env, "project", id);
     if (!proj) return json({ error: "Not found" }, 404);
     if (!STATUSES.includes(body.status)) return json({ error: "Unknown status" }, 400);
+    const becameBooked = body.status === "booked" && proj.status !== "booked";
     proj.status = body.status;
     await save(env, "project", proj);
-    return json({ ok: true, item: proj });
+    const depositsPaid = becameBooked ? await markDepositsPaid(env, proj.id) : 0;
+    return json({ ok: true, depositsPaid, item: proj });
   }
 
   // Send the portal link

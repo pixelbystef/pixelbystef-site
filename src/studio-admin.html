@@ -640,9 +640,11 @@ document.addEventListener("change", async (e) => {
   const sel = e.target.closest && e.target.closest("select[data-status]");
   if (!sel) return;
   const id = sel.dataset.status, status = sel.value, y = window.scrollY, q = $("#q") && $("#q").value;
-  try { await api(`project/${id}/status`, "POST", { status }); } catch { await go(); return; }
+  let res;
+  try { res = await api(`project/${id}/status`, "POST", { status }); } catch { await go(); return; }
   const pr = project(id); if (pr) pr.status = status;
-  toast(`${pr ? pr.title + ": " : ""}${status}`);
+  toast(`${pr ? pr.title + ": " : ""}${status}${res.depositsPaid ? ". Deposit marked as paid" : ""}`);
+  if (res.depositsPaid) await refresh();
   await go(); window.scrollTo(0, y);
   if (q && $("#q")) { $("#q").value = q; $("#q").dispatchEvent(new Event("input")); }
 });
