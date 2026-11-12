@@ -81,7 +81,7 @@ async function go() {
   const nav = $("#nav");
   const sect = hash.split("/")[1] || "";
   nav.innerHTML = `<a class="logo" href="#/">pixelby<em>stef</em></a>` +
-    [["", "Clients"], ["calendar", "Calendar"], ["contracts", "Contracts"], ["invoices", "Invoices"], ["templates", "Templates"], ["settings", "Settings"]]
+    [["", "Clients"], ["calendar", "Calendar"], ["contracts", "Contracts"], ["invoices", "Invoices"], ["revenue", "Revenue"], ["templates", "Templates"], ["settings", "Settings"]]
       .map(([k, t]) => `<a class="tab ${sect === k || (k === "" && sect === "client") ? "on" : ""}" href="#/${k}">${t}</a>`).join("") +
     `<span class="sp"></span><a class="tab" href="/studio/logout">Sign out</a>`;
   if (!S) await refresh();
@@ -385,6 +385,95 @@ route(/^\/import-pdf$/, () => {
     await refresh();
     $("#msg").innerHTML = 'Done. <a href="#/">Back to clients</a> or <a href="#/calendar">see the calendar</a>.';
   });
+});
+
+// ---------- revenue: money received per month ----------
+// Counts payments from the imported history, plus payments ticked "paid" in the studio after the history ends
+// (so bookings moved over from the old system are never counted twice).
+function paymentsList() {
+  const hist = (S.history && S.history.payments) || [];
+  const end = hist.reduce((m, x) => (x.d > m ? x.d : m), "");
+  const out = hist.filter((x) => x.c === "GBP").map((x) => ({ d: x.d, a: x.a }));
+  for (const inv of S.invoices) for (const p of inv.parts) if (p.paid && p.paidAt && (!end || p.paidAt > end)) out.push({ d: p.paidAt, a: +p.amount || 0 });
+  return { list: out, end, other: hist.filter((x) => x.c !== "GBP").length };
+}
+function parseCsv(text) {
+  const rows = []; let row = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cur); cur = ""; if (row.some((x) => x !== "")) rows.push(row); row = []; }
+    else cur += c;
+  }
+  row.push(cur); if (row.some((x) => x !== "")) rows.push(row);
+  return rows;
+}
+route(/^\/revenue$/, () => {
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const { list, end, other } = paymentsList();
+  const now = new Date(), ym = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
+  const thisYm = ym(now.getFullYear(), now.getMonth());
+  const first = list.map((x) => x.d.slice(0, 7)).sort()[0] || thisYm;
+  let period = "12";
+  const money0 = (n) => (cur() + Math.round(n).toLocaleString("en-GB"));
+  const months = () => {
+    let a, b = thisYm; const out = [];
+    if (period === "12") { const d = new Date(now.getFullYear(), now.getMonth() - 12, 1); a = ym(d.getFullYear(), d.getMonth()); }
+    else if (period === "year") a = `${now.getFullYear()}-01`;
+    else a = first;
+    let [y, m] = a.split("-").map(Number);
+    while (ym(y, m - 1) <= b) { out.push(ym(y, m - 1)); m++; if (m > 12) { m = 1; y++; } }
+    return out;
+  };
+  const chart = (ms, vals) => {
+    const W = 1000, H = 340, L = 20, R = 70, T = 20, B = 40, max0 = Math.max(...vals, 1);
+    const step = [100, 250, 500, 1000, 2000, 2500, 5000, 10000].find((s) => max0 / s <= 7) || 20000;
+    const top = Math.ceil(max0 / step) * step;
+    const x = (i) => L + (ms.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (ms.length - 1)), y = (v) => T + (H - T - B) * (1 - v / top);
+    const pts = vals.map((v, i) => [x(i), y(v)]);
+    const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    const area = `${line} L${x(ms.length - 1).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`;
+    let grid = ""; for (let v = 0; v <= top; v += step) grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(29,26,25,.12)"/><text x="${W - R + 10}" y="${y(v) + 4}" font-size="13" fill="#6f6863">${cur()}${v.toLocaleString("en-GB")}</text>`;
+    const every = ms.length > 14 ? 3 : ms.length > 7 ? 2 : 1;
+    const labels = ms.map((m, i) => (i % every ? "" : `<text x="${x(i)}" y="${H - 12}" font-size="13" fill="#6f6863" text-anchor="${i === 0 ? "start" : "middle"}">${MON[+m.slice(5) - 1]}${i === 0 || m.endsWith("-01") ? " " + m.slice(0, 4) : ""}</text>`)).join("");
+    const dots = pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="9" fill="transparent"><title>${MON[+ms[i].slice(5) - 1]} ${ms[i].slice(0, 4)}: ${cur()}${vals[i].toLocaleString("en-GB", { minimumFractionDigits: 2 })}</title></circle><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="var(--rose)"/>`).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c5a63" stop-opacity=".28"/><stop offset="1" stop-color="#8c5a63" stop-opacity=".02"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#g)"/><path d="${line}" fill="none" stroke="var(--rose)" stroke-width="3" stroke-linejoin="round"/>${dots}${labels}</svg>`;
+  };
+  const draw = () => {
+    const ms = months(), by = Object.fromEntries(ms.map((m) => [m, 0]));
+    for (const x of list) { const k = x.d.slice(0, 7); if (k in by) by[k] += x.a; }
+    const vals = ms.map((m) => by[m]), total = vals.reduce((a, b) => a + b, 0);
+    $("#chart").innerHTML = `<p class="muted" style="margin:0">Total revenue</p><div style="font:400 44px/1.2 var(--serif)">${cur()}${total.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</div>${chart(ms, vals)}
+      <table style="margin-top:14px"><tr><th>Month</th><th class="r">Received</th></tr>${[...ms].reverse().map((m) => `<tr><td>${MON[+m.slice(5) - 1]} ${m.slice(0, 4)}</td><td class="r">${by[m] ? cur() + by[m].toLocaleString("en-GB", { minimumFractionDigits: 2 }) : '<span class="muted">-</span>'}</td></tr>`).join("")}</table>`;
+  };
+  const h = S.history || { payments: [] };
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Rev<em>enue</em></h1>
+    <div class="row sb" style="margin:6px 0 16px"><p class="muted" style="margin:0">Money received per month. Payments you tick as paid in the studio are added automatically.</p>
+      <select id="period" style="width:auto"><option value="12">Last 12 months</option><option value="year">This year</option><option value="all">All time</option></select></div>
+    <div class="card" id="chart"></div>
+    <h2>Payment history from before the studio</h2><div class="card">
+      <p class="muted">${h.payments.length ? `${h.payments.length} past payments loaded (${nice(h.payments[0].d)} to ${nice(end)}). Payments marked paid in the studio before ${nice(end)} aren't counted again.${other ? ` ${other} payment(s) in other currencies aren't shown.` : ""}` : "Nothing loaded yet. Upload the payment export CSV from your old system once. Only dates and amounts are stored, no names, contracts or invoices."}</p>
+      <div class="row"><label class="btn ghost" style="margin:0;text-transform:none;font:inherit;cursor:pointer">Choose payments CSV<input id="csv" type="file" accept=".csv,text/csv" style="display:none"></label>${h.payments.length ? '<button class="danger sm" id="clearh">Remove history</button>' : ""}</div>
+      <div id="csvinfo" style="margin-top:12px"></div></div>`;
+  $("#period").onchange = (e) => { period = e.target.value; draw(); };
+  draw();
+  bind("#clearh", async () => { if (confirm("Remove the imported payment history?")) { await api("history", "DELETE"); await refresh(); await go(); } });
+  $("#csv").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const rows = parseCsv(await f.text()), head = rows.shift() || [];
+    const col = (n) => head.findIndex((x) => x.trim().toLowerCase().startsWith(n));
+    const iD = col("charge date"), iA = col("total amount paid"), iR = col("refunded"), iC = col("currency"), iM = col("payment method");
+    if (iD < 0 || iA < 0) return toast("This doesn't look like a payments export (no charge date / amount columns)", true);
+    const all = rows.map((r) => ({ d: (r[iD] || "").trim(), a: Math.round(((parseFloat(r[iA]) || 0) - (iR >= 0 ? parseFloat(r[iR]) || 0 : 0)) * 100) / 100, c: ((iC >= 0 && r[iC]) || "GBP").trim().toUpperCase(), m: ((iM >= 0 && r[iM]) || "").trim() })).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.d) && x.a);
+    $("#csvinfo").innerHTML = `<p>${all.length} payments found (${nice(all.map((x) => x.d).sort()[0])} to ${nice(all.map((x) => x.d).sort().pop())}).</p>
+      <div class="row"><div><label>Only import payments from this date</label><input id="from" type="date" value="2025-11-17"></div><div style="align-self:end"><button id="saveh">Save history</button></div></div>
+      <p class="muted" id="sum"></p>`;
+    const sum = () => { const sel = all.filter((x) => x.d >= $("#from").value && x.c === "GBP"); $("#sum").textContent = `${sel.length} payments, ${cur()}${sel.reduce((a, b) => a + b.a, 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })} (GBP). The default, 17 Nov 2025, is Tondi's second payment, the first one for a 2026 shoot.`; };
+    $("#from").oninput = sum; sum();
+    bind("#saveh", async () => { const from = $("#from").value; await api("history", "POST", { from, payments: all.filter((x) => x.d >= from) }); toast("History saved"); await refresh(); await go(); });
+  };
 });
 
 // ---------- calendar: all shoots in date order ----------

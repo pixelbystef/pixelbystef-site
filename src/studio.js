@@ -101,6 +101,11 @@ async function markDepositsPaid(env, projectId) {
   }
   return n;
 }
+// Payment history imported from the old system (just dates and amounts, for the revenue graph).
+async function getHistory(env) {
+  const o = await env.GALLERIES.get("studio/history.json");
+  return o ? o.json() : { payments: [], importedAt: "", from: "" };
+}
 async function byToken(env, type, token) {
   if (!/^[a-f0-9]{32}$/.test(token || "")) return null;
   const o = await env.GALLERIES.get(`studio/tok/${token}`);
@@ -738,7 +743,7 @@ async function handleApi(req, env, path) {
     await ensureDefaults(env);
     const [clients, projects, templates, contracts, invoices] = await listMany(env, TYPES);
     return json({
-      settings, origin, clients, projects, templates, defaults: { deliverables: defaultDeliverables(), extras: defaultExtras(settings.currency) },
+      settings, origin, history: await getHistory(env), clients, projects, templates, defaults: { deliverables: defaultDeliverables(), extras: defaultExtras(settings.currency) },
       contracts: contracts.map(({ signature, ...c }) => ({ ...c, signedBy: signature?.name || "" })),
       invoices: invoices.map((i) => ({ ...i, ...invStatus(i) })),
     });
@@ -971,6 +976,18 @@ async function handleApi(req, env, path) {
     if (k.length < 8) return json({ error: "Use at least 8 characters" }, 400);
     const salt = rid(16);
     await env.GALLERIES.put("studio/_config/key.json", JSON.stringify({ salt, hash: await sha256(salt + k) }));
+    return json({ ok: true });
+  }
+  if (path === "history" && req.method === "POST") {
+    const list = (Array.isArray(body.payments) ? body.payments : []).slice(0, 5000).map((x) => ({
+      d: isDate(x.d) ? x.d : "", a: Math.round((Number(x.a) || 0) * 100) / 100, c: /^[A-Z]{3}$/.test(x.c) ? x.c : "GBP", m: line(x.m, 30),
+    })).filter((x) => x.d && x.a);
+    const h = { importedAt: new Date().toISOString(), from: isDate(body.from) ? body.from : "", payments: list.sort((a, b) => a.d.localeCompare(b.d)) };
+    await env.GALLERIES.put("studio/history.json", JSON.stringify(h), { httpMetadata: { contentType: "application/json" } });
+    return json({ ok: true, count: list.length });
+  }
+  if (path === "history" && req.method === "DELETE") {
+    await env.GALLERIES.delete("studio/history.json");
     return json({ ok: true });
   }
   if (path === "export-info") {
