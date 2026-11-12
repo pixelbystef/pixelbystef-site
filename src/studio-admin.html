@@ -459,9 +459,26 @@ route(/^\/contract\/(\w+)$/, async (id) => {
 
 // ---------- invoices ----------
 route(/^\/invoices$/, () => {
-  const list = [...S.invoices].sort((a, b) => b.issued.localeCompare(a.issued));
-  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Invo<em>ices</em></h1><p class="muted">Create invoices from a client's page.</p>` +
-    (list.map((x) => `<a class="card item row sb" href="#/invoice/${x.id}" style="text-decoration:none;color:inherit"><div><strong>${esc(x.number)}</strong> · ${esc(client(x.clientId)?.name || "")}<br><span class="muted">${nice(x.issued)}</span></div><div>${fmt(x.total)} ${pill(x.status)}${x.claimed ? ' <span class="pill warn">client says paid</span>' : ""}</div></a>`).join("") || '<p class="muted">Nothing yet.</p>');
+  const t = today();
+  // Sorted by due date: the next unpaid payment of each invoice, soonest (or most overdue) first; paid invoices last.
+  const key = (x) => {
+    const open = x.parts.filter((p) => !p.paid);
+    if (open.length) { const dues = open.map((p) => p.due).filter(Boolean).sort(); return dues.length ? [0, dues[0]] : [1, ""]; }
+    const dues = x.parts.map((p) => p.due).filter(Boolean).sort();
+    return [2, dues.length ? dues[dues.length - 1] : x.issued];
+  };
+  const list = [...S.invoices].sort((a, b) => {
+    const [ga, da] = key(a), [gb, db] = key(b);
+    return ga - gb || (ga === 2 ? db.localeCompare(da) : da.localeCompare(db)) || a.number.localeCompare(b.number);
+  });
+  const partRow = (x, p, i) => {
+    const late = !p.paid && p.due && p.due < t;
+    return `<div class="row" style="justify-content:flex-end;gap:8px"><span class="muted">${esc(p.label)} ${fmt(p.amount)} · ${p.due ? "due " + nice(p.due) : "no due date"}</span>
+      <select class="stsel ${p.paid ? "ok" : late ? "bad" : ""}" data-part="${x.id}|${i}" title="Payment status"><option value="unpaid" ${p.paid ? "" : "selected"}>${late ? "overdue" : "unpaid"}</option><option value="paid" ${p.paid ? "selected" : ""}>paid</option></select></div>`;
+  };
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Invo<em>ices</em></h1><p class="muted">Soonest due first. Change a payment's status right here; open an invoice to edit it. Create invoices from a client's page.</p>` +
+    (list.map((x) => `<div class="card item row sb" data-href="#/invoice/${x.id}"><div><strong>${esc(x.number)}</strong> · ${esc(client(x.clientId)?.name || "")}${x.status === "draft" ? ' <span class="pill">draft</span>' : ""}${x.claimed ? ' <span class="pill warn">client says paid</span>' : ""}<br><span class="muted">${esc(project(x.projectId)?.title || "")}${project(x.projectId) ? " · " : ""}${fmt(x.total)}</span></div>
+      <div>${x.parts.map((p, i) => partRow(x, p, i)).join("")}</div></div>`).join("") || '<p class="muted">Nothing yet.</p>');
 });
 
 route(/^\/invoice\/(new\/)?(\w+)$/, (isNew, id) => {
@@ -610,6 +627,16 @@ document.addEventListener("click", (e) => {
   if (row) location.hash = row.dataset.href;
 });
 document.addEventListener("change", async (e) => {
+  const ps = e.target.closest && e.target.closest("select[data-part]");
+  if (ps) {
+    const [iid, idx] = ps.dataset.part.split("|"), y = window.scrollY;
+    try {
+      const r = await api(`invoice/${iid}/part`, "POST", { index: +idx, paid: ps.value === "paid" });
+      toast(r.booked ? "Marked paid. The shoot is now booked" : ps.value === "paid" ? "Marked paid" : "Marked unpaid");
+    } catch {}
+    await refresh(); await go(); window.scrollTo(0, y);
+    return;
+  }
   const sel = e.target.closest && e.target.closest("select[data-status]");
   if (!sel) return;
   const id = sel.dataset.status, status = sel.value, y = window.scrollY, q = $("#q") && $("#q").value;
