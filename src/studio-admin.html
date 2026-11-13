@@ -425,78 +425,72 @@ route(/^\/revenue$/, () => {
   const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const { list, end, other } = paymentsList();
   const now = new Date(), ym = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
-  const thisYm = ym(now.getFullYear(), now.getMonth());
+  const thisYm = ym(now.getFullYear(), now.getMonth()), monthStart = today().slice(0, 8) + "01";
   const first = list.map((x) => x.d.slice(0, 7)).sort()[0] || thisYm;
+  // Still to come in: every unpaid payment, by the month it falls due (unsent invoices included).
+  // Overdue ones count towards this month, since that's when they'd arrive; payments with no due date aren't charted.
+  const due = [];
+  for (const inv of S.invoices) for (const p of inv.parts) if (!p.paid && p.amount > 0) due.push({ d: p.due || "", a: +p.amount, draft: !inv.published });
+  const sumA = (arr) => arr.reduce((a, b) => a + b.a, 0);
+  const overdue = due.filter((x) => x.d && x.d < monthStart), undated = due.filter((x) => !x.d), dated = due.filter((x) => x.d);
+  const toCome = {};
+  for (const x of dated) { const k = x.d < monthStart ? thisYm : x.d.slice(0, 7); toCome[k] = (toCome[k] || 0) + x.a; }
+  const lastProj = Object.keys(toCome).sort().pop() || thisYm;
   let period = "12";
-  const money0 = (n) => (cur() + Math.round(n).toLocaleString("en-GB"));
+  const f2 = (n) => cur() + n.toLocaleString("en-GB", { minimumFractionDigits: 2 });
   const months = () => {
-    let a, b = thisYm; const out = [];
+    let a; const out = [], b = lastProj > thisYm ? lastProj : thisYm;
     if (period === "12") { const d = new Date(now.getFullYear(), now.getMonth() - 12, 1); a = ym(d.getFullYear(), d.getMonth()); }
     else if (period === "year") a = `${now.getFullYear()}-01`;
     else a = first;
     let [y, m] = a.split("-").map(Number);
-    while (ym(y, m - 1) <= b) { out.push(ym(y, m - 1)); m++; if (m > 12) { m = 1; y++; } }
+    while (ym(y, m - 1) <= b && out.length < 60) { out.push(ym(y, m - 1)); m++; if (m > 12) { m = 1; y++; } }
     return out;
   };
-  const chart = (ms, vals) => {
-    const W = 1000, H = 340, L = 20, R = 70, T = 20, B = 40, max0 = Math.max(...vals, 1);
+  // Solid line: money received up to this month. Dashed line: received plus still to come, from this month on.
+  const chart = (ms, got, proj) => {
+    const W = 1000, H = 340, L = 20, R = 70, T = 20, B = 40, ci = ms.indexOf(thisYm);
+    const max0 = Math.max(...got, ...proj.filter((v) => v != null), 1);
     const step = [100, 250, 500, 1000, 2000, 2500, 5000, 10000].find((s) => max0 / s <= 7) || 20000;
     const top = Math.ceil(max0 / step) * step;
     const x = (i) => L + (ms.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (ms.length - 1)), y = (v) => T + (H - T - B) * (1 - v / top);
-    const pts = vals.map((v, i) => [x(i), y(v)]);
-    const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
-    const area = `${line} L${x(ms.length - 1).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`;
+    const solidN = ci >= 0 ? ci + 1 : ms.length;
+    const sp = got.slice(0, solidN).map((v, i) => [x(i), y(v)]);
+    const path = (pts) => pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    const area = `${path(sp)} L${x(solidN - 1).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`;
+    // dashed: from the last full month's received point, then received + still to come for this month and later
+    const dp = [];
+    if (ci >= 0) { if (ci > 0) dp.push([x(ci - 1), y(got[ci - 1])]); for (let i = ci; i < ms.length; i++) dp.push([x(i), y(proj[i])]); }
     let grid = ""; for (let v = 0; v <= top; v += step) grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(29,26,25,.12)"/><text x="${W - R + 10}" y="${y(v) + 4}" font-size="13" fill="#6f6863">${cur()}${v.toLocaleString("en-GB")}</text>`;
     const every = ms.length > 14 ? 3 : ms.length > 7 ? 2 : 1;
     const labels = ms.map((m, i) => (i % every ? "" : `<text x="${x(i)}" y="${H - 12}" font-size="13" fill="#6f6863" text-anchor="${i === 0 ? "start" : "middle"}">${MON[+m.slice(5) - 1]}${i === 0 || m.endsWith("-01") ? " " + m.slice(0, 4) : ""}</text>`)).join("");
-    const dots = pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="9" fill="transparent"><title>${MON[+ms[i].slice(5) - 1]} ${ms[i].slice(0, 4)}: ${cur()}${vals[i].toLocaleString("en-GB", { minimumFractionDigits: 2 })}</title></circle><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="var(--rose)"/>`).join("");
-    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c5a63" stop-opacity=".28"/><stop offset="1" stop-color="#8c5a63" stop-opacity=".02"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#g)"/><path d="${line}" fill="none" stroke="var(--rose)" stroke-width="3" stroke-linejoin="round"/>${dots}${labels}</svg>`;
+    const name = (i) => `${MON[+ms[i].slice(5) - 1]} ${ms[i].slice(0, 4)}`;
+    const dots = sp.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="9" fill="transparent"><title>${name(i)}: ${f2(got[i])} received</title></circle><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="var(--rose)"/>`).join("")
+      + (ci >= 0 ? ms.map((m, i) => (i < ci || !toCome[m] ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(proj[i]).toFixed(1)}" r="9" fill="transparent"><title>${name(i)}: ${f2(proj[i])} expected (${f2(got[i])} received + ${f2(toCome[m])} still due)</title></circle><circle cx="${x(i).toFixed(1)}" cy="${y(proj[i]).toFixed(1)}" r="3.5" fill="#fff" stroke="var(--rose)" stroke-width="2"/>`)).join("") : "");
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c5a63" stop-opacity=".28"/><stop offset="1" stop-color="#8c5a63" stop-opacity=".02"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#g)"/><path d="${path(sp)}" fill="none" stroke="var(--rose)" stroke-width="3" stroke-linejoin="round"/>${dp.length > 1 ? `<path d="${path(dp)}" fill="none" stroke="var(--rose)" stroke-width="3" stroke-dasharray="9 7" stroke-linejoin="round" opacity=".75"/>` : ""}${dots}${labels}</svg>`;
   };
   const draw = () => {
     const ms = months(), by = Object.fromEntries(ms.map((m) => [m, 0]));
     for (const x of list) { const k = x.d.slice(0, 7); if (k in by) by[k] += x.a; }
-    const vals = ms.map((m) => by[m]), total = vals.reduce((a, b) => a + b, 0);
-    $("#chart").innerHTML = `<p class="muted" style="margin:0">Total revenue</p><div style="font:400 44px/1.2 var(--serif)">${cur()}${total.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</div>${chart(ms, vals)}
-      <table style="margin-top:14px"><tr><th>Month</th><th class="r">Received</th></tr>${[...ms].reverse().map((m) => `<tr><td>${MON[+m.slice(5) - 1]} ${m.slice(0, 4)}</td><td class="r">${by[m] ? cur() + by[m].toLocaleString("en-GB", { minimumFractionDigits: 2 }) : '<span class="muted">-</span>'}</td></tr>`).join("")}</table>`;
-  };
-  // Projected: every unpaid payment on an invoice, by the month it falls due (unsent invoices included).
-  const drawProjected = () => {
-    const tm = today();
-    const due = [];
-    for (const inv of S.invoices) for (const p of inv.parts) if (!p.paid && p.amount > 0) due.push({ d: p.due || "", a: +p.amount, draft: !inv.published });
-    const sum = (arr) => arr.reduce((a, b) => a + b.a, 0);
-    const overdue = due.filter((x) => x.d && x.d < tm.slice(0, 8) + "01"), undated = due.filter((x) => !x.d);
-    const upcoming = due.filter((x) => x.d && x.d >= tm.slice(0, 8) + "01");
-    const last = upcoming.map((x) => x.d.slice(0, 7)).sort().pop() || thisYm;
-    const ms = []; let [y, m] = thisYm.split("-").map(Number);
-    while (ym(y, m - 1) <= last && ms.length < 36) { ms.push(ym(y, m - 1)); m++; if (m > 12) { m = 1; y++; } }
-    const by = Object.fromEntries(ms.map((k) => [k, 0]));
-    for (const x of upcoming) by[x.d.slice(0, 7)] += x.a;
-    const total = sum(due), unsent = sum(due.filter((x) => x.draft));
-    const f2 = (n) => cur() + n.toLocaleString("en-GB", { minimumFractionDigits: 2 });
-    const vals = ms.map((k) => by[k]), W = 1000, H = 220, top = Math.max(...vals, 1), bw = Math.min(70, (W - 40) / ms.length - 10);
-    const bars = ms.map((k, i) => { const cx = 20 + (i + 0.5) * ((W - 40) / ms.length), hh = (H - 60) * (vals[i] / top); return `<rect x="${(cx - bw / 2).toFixed(1)}" y="${(H - 30 - hh).toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" rx="4" fill="#8c5a63" fill-opacity=".35"><title>${MON[+k.slice(5) - 1]} ${k.slice(0, 4)}: ${f2(vals[i])}</title></rect>${vals[i] ? `<text x="${cx.toFixed(1)}" y="${(H - 36 - hh).toFixed(1)}" font-size="12" fill="#6f6863" text-anchor="middle">${cur()}${Math.round(vals[i]).toLocaleString("en-GB")}</text>` : ""}<text x="${cx.toFixed(1)}" y="${H - 10}" font-size="12" fill="#6f6863" text-anchor="middle">${MON[+k.slice(5) - 1]}${k.endsWith("-01") || i === 0 ? " " + k.slice(2, 4) : ""}</text>`; }).join("");
-    $("#proj").innerHTML = `<p class="muted" style="margin:0">Still to come in (unpaid, by due date)</p><div style="font:400 44px/1.2 var(--serif)">${f2(total)}</div>
-      <p class="muted" style="margin:0 0 8px">${unsent > 0 ? `Includes ${f2(unsent)} on invoices you haven't sent yet. ` : ""}${overdue.length ? `${f2(sum(overdue))} of it is overdue.` : ""}</p>
-      ${ms.length ? `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><line x1="20" x2="${W - 20}" y1="${H - 30}" y2="${H - 30}" stroke="rgba(29,26,25,.12)"/>${bars}</svg>` : ""}
-      <table style="margin-top:10px"><tr><th>Due</th><th class="r">Amount</th></tr>
-      ${overdue.length ? `<tr><td><strong>Overdue</strong> <span class="muted">(before this month)</span></td><td class="r">${f2(sum(overdue))}</td></tr>` : ""}
-      ${ms.map((k) => `<tr><td>${MON[+k.slice(5) - 1]} ${k.slice(0, 4)}</td><td class="r">${by[k] ? f2(by[k]) : '<span class="muted">-</span>'}</td></tr>`).join("")}
-      ${undated.length ? `<tr><td>No due date</td><td class="r">${f2(sum(undated))}</td></tr>` : ""}</table>
-      ${due.length ? "" : '<p class="muted">Nothing unpaid right now.</p>'}`;
+    const got = ms.map((m) => by[m]), total = got.reduce((a, b) => a + b, 0);
+    const proj = ms.map((m, i) => (m >= thisYm ? got[i] + (toCome[m] || 0) : null));
+    const unsent = sumA(due.filter((x) => x.draft));
+    $("#chart").innerHTML = `<p class="muted" style="margin:0">Total revenue</p><div style="font:400 44px/1.2 var(--serif)">${f2(total)}</div>
+      <p class="muted" style="margin:0 0 6px">${due.length ? `Dashed line: still to come in (${f2(sumA(due))} unpaid${unsent > 0 ? `, ${f2(unsent)} on invoices not sent yet` : ""}${overdue.length ? `, ${f2(sumA(overdue))} overdue and counted in this month` : ""}${undated.length ? `; ${f2(sumA(undated))} has no due date and isn't charted` : ""}).` : "Nothing unpaid right now."}</p>
+      ${chart(ms, got, proj)}
+      <table style="margin-top:14px"><tr><th>Month</th><th class="r">Received</th><th class="r">Still to come</th></tr>${[...ms].reverse().map((m) => `<tr><td>${MON[+m.slice(5) - 1]} ${m.slice(0, 4)}</td><td class="r">${by[m] ? f2(by[m]) : '<span class="muted">-</span>'}</td><td class="r">${m >= thisYm && toCome[m] ? f2(toCome[m]) : '<span class="muted">-</span>'}</td></tr>`).join("")}</table>`;
   };
   const h = S.history || { payments: [] };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Rev<em>enue</em></h1>
     <div class="row sb" style="margin:6px 0 16px"><p class="muted" style="margin:0">Money received per month. Payments you tick as paid in the studio are added automatically.</p>
       <select id="period" style="width:auto"><option value="12">Last 12 months</option><option value="year">This year</option><option value="all">All time</option></select></div>
     <div class="card" id="chart"></div>
-    <h2>Projected revenue</h2><div class="card" id="proj"></div>
     <h2>Payment history from before the studio</h2><div class="card">
       <p class="muted">${h.payments.length ? `${h.payments.length} past payments loaded (${nice(h.payments[0].d)} to ${nice(end)}). Payments marked paid in the studio before ${nice(end)} aren't counted again.${other ? ` ${other} payment(s) in other currencies aren't shown.` : ""}` : "Nothing loaded yet. Upload the payment export CSV from your old system once. Only dates and amounts are stored, no names, contracts or invoices."}</p>
       <div class="row"><label class="btn ghost" style="margin:0;text-transform:none;font:inherit;cursor:pointer">Choose payments CSV<input id="csv" type="file" accept=".csv,text/csv" style="display:none"></label>${h.payments.length ? '<button class="danger sm" id="clearh">Remove history</button>' : ""}</div>
       <div id="csvinfo" style="margin-top:12px"></div></div>`;
   $("#period").onchange = (e) => { period = e.target.value; draw(); };
-  draw(); drawProjected();
+  draw();
   bind("#clearh", async () => { if (confirm("Remove the imported payment history?")) { await api("history", "DELETE"); await refresh(); await go(); } });
   $("#csv").onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
