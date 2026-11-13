@@ -514,6 +514,7 @@ route(/^\/calendar$/, () => {
   const shoots = S.projects.filter((p) => p.date && p.status !== "lost").sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
   const upcoming = shoots.filter((p) => p.date >= t), past = shoots.filter((p) => p.date < t).reverse();
   const undated = S.projects.filter((p) => !p.date && !["lost", "completed"].includes(p.status));
+  const blocks = (S.blocked || []).filter((b) => b.to >= t);
   const row = (p) => {
     const c = client(p.clientId);
     const money = projectMoney(p), owe = money.remaining;
@@ -524,16 +525,112 @@ route(/^\/calendar$/, () => {
       <div><strong>${esc(p.title)}</strong> ${statusSelect(p)}${when ? ` <span class="pill warn">${when}</span>` : ""}<br><span class="muted">${esc([p.time, p.location, c?.name].filter(Boolean).join(" · "))}</span></div></div>
       <div class="muted" style="text-align:right">${p.price ? fmt(p.price) : ""}${money.has ? `<br>${owe > 0 ? fmt(owe) + " to pay" : "all paid"}` : ""}</div></div>`;
   };
-  const byMonth = (list) => {
-    let last = "";
-    return list.map((p) => { const m = new Date(p.date + "T12:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }); const h = m !== last ? `<h2>${m}</h2>` : ""; last = m; return h + row(p); }).join("");
+  const blockRow = (b) => {
+    const f = new Date(b.from + "T12:00:00Z"), same = b.from === b.to;
+    const rng = same ? nice(b.from) : `${nice(b.from)} to ${nice(b.to)}`;
+    return `<div class="card row sb" style="background:repeating-linear-gradient(135deg,#f3eee8 0 8px,#faf7f3 8px 16px)"><div class="row" style="gap:18px;flex-wrap:nowrap"><div style="min-width:64px;text-align:center"><div class="mono">${f.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div style="font:30px/1 var(--serif)">${f.getUTCDate()}</div></div>
+      <div><strong>Blocked</strong> <span class="muted">${esc(rng)}</span>${b.note ? `<br><span class="muted">${esc(b.note)}</span>` : ""}</div></div><button class="ghost sm" data-unblock="${b.id}">Unblock</button></div>`;
   };
-  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cal<em>endar</em></h1><p class="muted">Your shoots in date order. Click one to open the client.</p>
-    ${upcoming.length ? byMonth(upcoming) : '<p class="muted">No upcoming shoots. Add a date to a project and it appears here.</p>'}
+  // shoots and blocked days together, in date order, under month headings
+  const items = [...upcoming.map((p) => ({ k: p.date, html: row(p) })), ...blocks.map((b) => ({ k: b.from < t ? t : b.from, html: blockRow(b) }))].sort((a, b) => a.k.localeCompare(b.k));
+  const byMonth = () => {
+    let last = "";
+    return items.map((x) => { const m = new Date(x.k + "T12:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }); const h = m !== last ? `<h2>${m}</h2>` : ""; last = m; return h + x.html; }).join("");
+  };
+  $("#app").innerHTML = `<p class="mono">Studio</p><h1>Cal<em>endar</em></h1>
+    <div class="row sb" style="margin:6px 0 14px"><p class="muted" style="margin:0">Your shoots and blocked days in date order. Click a shoot to open the client.</p>
+      <span class="row"><button class="ghost" id="blockbtn">Block dates</button><button class="ghost" id="storybtn">Instagram story</button></span></div>
+    <div id="blockform" class="card" style="display:none"><div class="grid">${field("bfrom", "First day", t, "date")}${field("bto", "Last day (leave as the same for one day)", "", "date")}${field("bnote", "Note (private, never shown in the story)", "")}</div><p class="row"><button id="saveblock">Block these days</button><button class="ghost" id="cancelblock">Cancel</button></p></div>
+    <div id="storybox" class="card" style="display:none"></div>
+    ${items.length ? byMonth() : '<p class="muted">No upcoming shoots or blocked days. Add a date to a project and it appears here.</p>'}
     ${undated.length ? `<h2>No date yet</h2>${undated.map((p) => `<div class="card item row sb" data-href="#/client/${p.clientId}"><div><strong>${esc(p.title)}</strong> ${statusSelect(p)}<br><span class="muted">${esc(client(p.clientId)?.name || "")}</span></div></div>`).join("")}` : ""}
     ${past.length ? `<h2>Past shoots</h2><div id="past" style="display:none">${past.map(row).join("")}</div><p><button class="ghost sm" id="showpast">Show ${past.length} past shoot${past.length === 1 ? "" : "s"}</button></p>` : ""}`;
   bind("#showpast", () => { $("#past").style.display = "block"; $("#showpast").remove(); });
+  bind("#blockbtn", () => { const f = $("#blockform"); f.style.display = f.style.display === "none" ? "block" : "none"; });
+  bind("#cancelblock", () => ($("#blockform").style.display = "none"));
+  bind("#saveblock", async () => {
+    if (!val("f_bfrom")) return toast("Choose the first day", true);
+    await api("blocked", "POST", { from: val("f_bfrom"), to: val("f_bto") || val("f_bfrom"), note: val("f_bnote") });
+    toast("Blocked"); await refresh(); await go();
+  });
+  document.querySelectorAll("[data-unblock]").forEach((el) => (el.onclick = async (e) => { e.stopPropagation(); await api("blocked/" + el.dataset.unblock, "DELETE"); toast("Unblocked"); await refresh(); await go(); }));
+  bind("#storybtn", () => { const b = $("#storybox"); if (b.style.display === "none") { b.style.display = "block"; storyPanel(b); } else b.style.display = "none"; });
 });
+
+// ---------- Instagram story: the calendar as a 1080x1920 picture (no names, times or money) ----------
+function storyPanel(box) {
+  const now = new Date(), opts = [];
+  for (let i = 0; i < 12; i++) { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); opts.push([d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })]); }
+  box.innerHTML = `<h3 style="margin:0 0 6px">Instagram story</h3><p class="muted" style="margin:0 0 10px">Booked shoots and blocked days as a picture for your story. It never shows names, times or prices.</p>
+    <div class="grid">${select("sm", "First month", opts, opts[0][0])}${select("sn", "Months", [["1", "1 month"], ["2", "2 months"]], "2")}${select("sl", "Label on booked days", [["loc", "Location (e.g. London)"], ["type", "Type of shoot (e.g. Wedding)"], ["none", "Nothing"]], "loc")}</div>
+    <p class="row"><button id="mkstory">Make story</button></p><div id="storyout"></div>`;
+  bind("#mkstory", async () => {
+    const [y, m] = val("f_sm").split("-").map(Number), n = +val("f_sn"), mode = val("f_sl");
+    const months = Array.from({ length: n }, (_, i) => [y + Math.floor((m - 1 + i) / 12), ((m - 1 + i) % 12) + 1]);
+    const cv = await drawStory(months, mode);
+    const url = cv.toDataURL("image/png"), name = "sessions-" + months.map((x) => x[1]).join("-") + ".png";
+    $("#storyout").innerHTML = `<img src="${url}" alt="Story preview" style="max-width:min(100%,360px);border:1px solid var(--line);border-radius:12px;display:block;margin:6px 0 12px"><a class="btn" href="${url}" download="${name}">Download PNG (1080×1920)</a>`;
+  });
+}
+async function drawStory(months, mode) {
+  const W = 1080, H = 1920, t = today();
+  const live = S.projects.filter((p) => p.date && p.date >= t && ["booked", "shot", "delivered", "completed"].includes(p.status));
+  const label = (p) => mode === "type" ? p.type || "" : mode === "loc" ? ((p.location || "").split(",").pop() || "").trim() : "";
+  const byDay = {};
+  for (const p of live) (byDay[p.date] = byDay[p.date] || []).push(p);
+  const blocked = new Set();
+  for (const b of S.blocked || []) for (let d = new Date(b.from + "T12:00:00Z"); d <= new Date(b.to + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) blocked.add(d.toISOString().slice(0, 10));
+  const SERIF = '"Instrument Serif", Georgia, serif', SANS = '"Hanken Grotesk", "Helvetica Neue", Arial, sans-serif';
+  try { await Promise.all(['100px "Instrument Serif"', 'italic 100px "Instrument Serif"', '400 20px "Hanken Grotesk"', '500 20px "Hanken Grotesk"', '600 20px "Hanken Grotesk"'].map((f) => document.fonts.load(f))); } catch {}
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  c.fillStyle = "#fbf9f6"; c.fillRect(0, 0, W, H);
+  const rr = (x, y, w, h, r) => { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); };
+  const text = (s, x, y, font, color, align = "left", spacing = "0px") => { c.font = font; c.fillStyle = color; c.textAlign = align; c.letterSpacing = spacing; c.fillText(s, x, y); c.letterSpacing = "0px"; };
+  // title
+  c.font = `400 100px ${SERIF}`; const w1 = c.measureText("Sessions ").width; c.font = `italic 400 100px ${SERIF}`; const w2 = c.measureText("booked").width;
+  const x0 = (W - w1 - w2) / 2, top = months.length > 1 ? 238 : 300;
+  text("Sessions ", x0, top + 90, `400 100px ${SERIF}`, "#1d1a19"); text("booked", x0 + w1, top + 90, `italic 400 100px ${SERIF}`, "#8c5a63");
+  const names = months.map(([y, m]) => new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" })).join(" & ").toUpperCase();
+  text("PIXELBYSTEF · " + names, W / 2, top + 140, `400 23px ${SANS}`, "#6f6863", "center", "4px");
+  // geometry
+  const L = 70, GW = W - 140, CW = GW / 7;
+  const rows = months.map(([y, m]) => Math.ceil((((new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7) + new Date(Date.UTC(y, m, 0)).getUTCDate()) / 7));
+  const R = rows.reduce((a, b) => a + b, 0), start = top + 175, legendH = 70;
+  const CH = Math.max(70, Math.min(118, Math.floor((1650 - start - legendH - 118 * months.length - 26 * (months.length - 1)) / R)));
+  const hatch = (() => { const p = document.createElement("canvas"); p.width = p.height = 14; const q = p.getContext("2d"); q.fillStyle = "#f5f1ec"; q.fillRect(0, 0, 14, 14); q.strokeStyle = "#ebe5de"; q.lineWidth = 7; q.beginPath(); q.moveTo(-7, 7); q.lineTo(7, -7); q.moveTo(0, 14); q.lineTo(14, 0); q.moveTo(7, 21); q.lineTo(21, 7); q.stroke(); return c.createPattern(p, "repeat"); })();
+  let y = start;
+  months.forEach(([yy, mm], mi) => {
+    text(new Date(Date.UTC(yy, mm - 1, 1)).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" }), L, y + 44, `400 56px ${SERIF}`, "#1d1a19");
+    y += 66;
+    ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].forEach((d, i) => text(d, L + CW * (i + 0.5), y + 22, `400 19px ${SANS}`, "#6f6863", "center", "2px"));
+    y += 34; c.strokeStyle = "rgba(29,26,25,.18)"; c.lineWidth = 1.5; c.beginPath(); c.moveTo(L, y); c.lineTo(L + GW, y); c.stroke();
+    const first = (new Date(Date.UTC(yy, mm - 1, 1)).getUTCDay() + 6) % 7, days = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+    for (let d = 1; d <= days; d++) {
+      const idx = first + d - 1, cx = L + (idx % 7) * CW, cy = y + Math.floor(idx / 7) * CH, key = `${yy}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const list = byDay[key], isBlocked = blocked.has(key), mid = cx + CW / 2;
+      if (list || isBlocked) {
+        rr(cx + 3, cy + 3, CW - 6, CH - 6, 14);
+        c.fillStyle = list ? "#8c5a63" : hatch; c.fill();
+        let lab = list ? label(list[0]) : "Blocked";
+        if (list && lab && list.length > 1) lab += " ×" + list.length;
+        const big = list ? `600 ${Math.min(34, CH * 0.38)}px ${SANS}` : `400 ${Math.min(30, CH * 0.34)}px ${SANS}`;
+        const numY = lab ? cy + CH * 0.5 - 2 : cy + CH * 0.5 + 11;
+        text(String(d), mid, numY, big, list ? "#fff" : "#8a827d", "center");
+        if (lab) { let fs = 17; c.font = `500 ${fs}px ${SANS}`; while (c.measureText(lab).width > CW - 14 && fs > 11) { fs--; c.font = `500 ${fs}px ${SANS}`; } text(lab, mid, cy + CH * 0.5 + 22, `500 ${fs}px ${SANS}`, list ? "#f3e6e8" : "#8a827d", "center"); }
+      } else {
+        text(String(d), mid, cy + CH * 0.5 + 11, `400 30px ${SANS}`, "#6f6863", "center");
+        c.strokeStyle = "rgba(29,26,25,.08)"; c.lineWidth = 1; c.beginPath(); c.moveTo(cx, cy + CH); c.lineTo(cx + CW, cy + CH); c.stroke();
+      }
+    }
+    y += rows[mi] * CH + 26;
+  });
+  // legend
+  const ly = y + 8, lx = W / 2 - 150;
+  rr(lx, ly, 34, 34, 9); c.fillStyle = "#8c5a63"; c.fill(); text("Booked", lx + 48, ly + 26, `400 24px ${SANS}`, "#6f6863");
+  rr(lx + 190, ly, 34, 34, 9); c.fillStyle = hatch; c.fill(); text("Blocked", lx + 238, ly + 26, `400 24px ${SANS}`, "#6f6863");
+  return cv;
+}
 
 route(/^\/contracts$/, () => {
   const list = [...S.contracts].sort((a, b) => b.created.localeCompare(a.created));

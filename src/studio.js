@@ -106,6 +106,12 @@ async function getHistory(env) {
   const o = await env.GALLERIES.get("studio/history.json");
   return o ? o.json() : { payments: [], importedAt: "", from: "" };
 }
+// Days kept free (holidays, travel, a shoot not yet in the studio): [{ id, from, to, note }]
+async function getBlocked(env) {
+  const o = await env.GALLERIES.get("studio/blocked.json");
+  return o ? o.json() : [];
+}
+const putBlocked = (env, list) => env.GALLERIES.put("studio/blocked.json", JSON.stringify(list), { httpMetadata: { contentType: "application/json" } });
 async function byToken(env, type, token) {
   if (!/^[a-f0-9]{32}$/.test(token || "")) return null;
   const o = await env.GALLERIES.get(`studio/tok/${token}`);
@@ -743,7 +749,7 @@ async function handleApi(req, env, path) {
     await ensureDefaults(env);
     const [clients, projects, templates, contracts, invoices] = await listMany(env, TYPES);
     return json({
-      settings, origin, history: await getHistory(env), clients, projects, templates, defaults: { deliverables: defaultDeliverables(), extras: defaultExtras(settings.currency) },
+      settings, origin, history: await getHistory(env), blocked: await getBlocked(env), clients, projects, templates, defaults: { deliverables: defaultDeliverables(), extras: defaultExtras(settings.currency) },
       contracts: contracts.map(({ signature, ...c }) => ({ ...c, signedBy: signature?.name || "" })),
       invoices: invoices.map((i) => ({ ...i, ...invStatus(i) })),
     });
@@ -976,6 +982,19 @@ async function handleApi(req, env, path) {
     if (k.length < 8) return json({ error: "Use at least 8 characters" }, 400);
     const salt = rid(16);
     await env.GALLERIES.put("studio/_config/key.json", JSON.stringify({ salt, hash: await sha256(salt + k) }));
+    return json({ ok: true });
+  }
+  if (path === "blocked" && req.method === "POST") {
+    if (!isDate(body.from)) return json({ error: "Choose the first day to block" }, 400);
+    const to = isDate(body.to) && body.to >= body.from ? body.to : body.from;
+    const list = await getBlocked(env);
+    list.push({ id: rid(8), from: body.from, to, note: line(body.note, 120) });
+    list.sort((a, b) => a.from.localeCompare(b.from));
+    await putBlocked(env, list.slice(-500));
+    return json({ ok: true });
+  }
+  if (type === "blocked" && id && req.method === "DELETE") {
+    await putBlocked(env, (await getBlocked(env)).filter((b) => b.id !== id));
     return json({ ok: true });
   }
   if (path === "history" && req.method === "POST") {
