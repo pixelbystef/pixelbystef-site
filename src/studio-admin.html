@@ -54,6 +54,15 @@ const client = (id) => S.clients.find((c) => c.id === id);
 const project = (id) => S.projects.find((p) => p.id === id);
 const pill = (s) => `<span class="pill ${{ paid: "ok", signed: "ok", booked: "ok", delivered: "ok", completed: "ok", overdue: "bad", void: "bad", lost: "bad" }[s] || (s === "draft" ? "" : "warn")}">${esc(s)}</span>`;
 
+// What's still to be paid for a shoot. Counts unsent (draft) invoices too, so a paid deposit with the balance
+// invoice not yet sent doesn't look "all paid". With a price set it is price minus everything paid so far.
+function projectMoney(p) {
+  const invs = S.invoices.filter((i) => i.projectId === p.id);
+  const paid = invs.reduce((s, i) => s + (i.paid || 0), 0);
+  const open = invs.reduce((s, i) => s + (i.outstanding || 0), 0);
+  const remaining = p.price > 0 ? Math.max(Math.round((p.price - paid) * 100) / 100, 0) : open;
+  return { has: invs.length > 0, paid, remaining };
+}
 const STATUS_LIST = ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"];
 // A status pill you can change in place (the row itself is a link, so clicks on it are handled separately).
 const statusSelect = (p) => `<select class="stsel ${{ booked: "ok", delivered: "ok", completed: "ok", lost: "bad" }[p.status] || ""}" data-status="${p.id}" title="Change status">${STATUS_LIST.map((x) => `<option ${x === p.status ? "selected" : ""}>${x}</option>`).join("")}</select>`;
@@ -95,7 +104,9 @@ const bind = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
 
 // ---------- clients ----------
 route(/^\/$/, () => {
-  const outstanding = (id) => S.invoices.filter((i) => i.clientId === id && i.published).reduce((s, i) => s + i.outstanding, 0);
+  const outstanding = (id) =>
+    S.projects.filter((p) => p.clientId === id && p.status !== "lost").reduce((s, p) => { const m = projectMoney(p); return s + (m.has ? m.remaining : 0); }, 0) +
+    S.invoices.filter((i) => i.clientId === id && !i.projectId && i.published).reduce((s, i) => s + i.outstanding, 0);
   const draw = (q = "") => {
     // Soonest upcoming shoot first, then clients with no date yet, then past shoots (most recent first).
     const key = (c) => {
@@ -484,14 +495,13 @@ route(/^\/calendar$/, () => {
   const undated = S.projects.filter((p) => !p.date && !["lost", "completed"].includes(p.status));
   const row = (p) => {
     const c = client(p.clientId);
-    const invs = S.invoices.filter((i) => i.projectId === p.id && i.published);
-    const owe = invs.reduce((s, i) => s + i.outstanding, 0);
+    const money = projectMoney(p), owe = money.remaining;
     const day = new Date(p.date + "T12:00:00Z");
     const days = Math.round((day - new Date(t + "T12:00:00Z")) / 86400000);
     const when = days === 0 ? "today" : days === 1 ? "tomorrow" : days > 1 && days <= 14 ? "in " + days + " days" : "";
     return `<div class="card item row sb" data-href="#/client/${p.clientId}"><div class="row" style="gap:18px;flex-wrap:nowrap"><div style="min-width:64px;text-align:center"><div class="mono">${day.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div style="font:30px/1 var(--serif)">${day.getUTCDate()}</div></div>
       <div><strong>${esc(p.title)}</strong> ${statusSelect(p)}${when ? ` <span class="pill warn">${when}</span>` : ""}<br><span class="muted">${esc([p.time, p.location, c?.name].filter(Boolean).join(" · "))}</span></div></div>
-      <div class="muted" style="text-align:right">${p.price ? fmt(p.price) : ""}${invs.length ? `<br>${owe > 0 ? fmt(owe) + " to pay" : "all paid"}` : ""}</div></div>`;
+      <div class="muted" style="text-align:right">${p.price ? fmt(p.price) : ""}${money.has ? `<br>${owe > 0 ? fmt(owe) + " to pay" : "all paid"}` : ""}</div></div>`;
   };
   const byMonth = (list) => {
     let last = "";
