@@ -150,6 +150,16 @@ ${rows.map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#6f6863">${e
   return reply(request, 200, { ok: true });
 }
 
+const PAGE_ALIASES = {
+  "/wedding": "/weddings",
+  "/proposal": "/proposals",
+  "/elopement": "/elopements",
+  "/couple": "/couples",
+  "/film": "/films",
+};
+// Capitalised spellings of the real pages (e.g. /Weddings) also land on the lowercase page.
+for (const p of Object.values(PAGE_ALIASES)) PAGE_ALIASES[p] = p;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -157,6 +167,12 @@ export default {
     if (url.hostname === "www." + CANONICAL_HOST || url.hostname === "new." + CANONICAL_HOST) {
       url.hostname = CANONICAL_HOST;
       url.protocol = "https:";
+      return Response.redirect(url.toString(), 301);
+    }
+    // Old/alternative page addresses (e.g. /wedding, /Proposal, /elopement.html) go to the real page.
+    const alias = PAGE_ALIASES[url.pathname.toLowerCase().replace(/(\.html|\/)$/, "")];
+    if (alias && alias !== url.pathname) {
+      url.pathname = alias;
       return Response.redirect(url.toString(), 301);
     }
     if (url.pathname === "/api/enquiry") return handleEnquiry(request, env);
