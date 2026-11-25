@@ -59,6 +59,7 @@ details.sec>summary h2{margin:0}details.sec>summary .cnt{font:12px var(--mono);c
 .shoot .sd{text-align:center}.shoot .big{font:30px/1 var(--serif)}.shoot .pr{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin:2px 0;font-size:13.5px}.shoot .tot{font-weight:600;color:var(--ink)}
 .tag{display:inline-block;font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:1px 8px;border-radius:99px;background:var(--rose-soft);color:var(--rose);margin-left:6px}.tag.late{background:#fee2e2;color:#b91c1c}
 @media (max-width:820px){.shoot{grid-template-columns:56px 1fr}.shoot .ss{grid-column:2}.shoot .sp{grid-column:1/-1}.shoot .pr{justify-content:flex-start}}
+select.srcsel{width:auto;font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--line);border-radius:99px;background:#fff;color:#5d554f;cursor:pointer;margin-top:6px}select.srcsel.unset{border-style:dashed;color:#a39a93}
 code{background:var(--paper-2);padding:1px 6px;border-radius:5px;font-size:13px}.link{font:12.5px var(--mono);word-break:break-all;background:var(--paper-2);padding:8px 12px;border-radius:10px}
 </style>
 </head>
@@ -92,6 +93,9 @@ function projectMoney(p) {
 }
 const STATUS_LIST = ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"];
 // A status pill you can change in place (the row itself is a link, so clicks on it are handled separately).
+const SOURCES = ["Instagram", "Google search", "Threads", "Referral", "Reddit", "Other"];
+// Where the booking came from, changed in place like the status.
+const sourceSelect = (p) => `<select class="srcsel ${p.source ? "" : "unset"}" data-source="${p.id}" title="Where did this booking come from?"><option value="">${p.source ? "no source" : "source?"}</option>${SOURCES.map((x) => `<option ${x === p.source ? "selected" : ""}>${x}</option>`).join("")}</select>`;
 const STATUS_COLOR = { enquiry: "#8a97a6", proposal: "#e0a800", booked: "#2563eb", shot: "#7c3aed", delivered: "#0d9488", completed: "#334155", lost: "#a78b78" };
 const statusSelect = (p) => `<select class="stsel ${PILL[p.status] || ""}" data-status="${p.id}" title="Change status">${STATUS_LIST.map((x) => `<option value="${x}" ${x === p.status ? "selected" : ""}>${STATUS_LABEL[x] || x}</option>`).join("")}</select>`;
 // One payment (deposit, balance...) of an invoice, with a dropdown to mark it paid or unpaid.
@@ -153,7 +157,7 @@ route(/^\/$/, () => {
     return `<div class="shoot" data-href="#/client/${p.clientId}" style="border-left-color:${STATUS_COLOR[p.status] || "#ccc"}">
       <div class="sd">${day ? `<div class="mono">${day.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div class="big">${day.getUTCDate()}</div><div class="mono">${MONS[day.getUTCMonth()]}${day.getUTCFullYear() !== new Date().getFullYear() ? " \u2019" + String(day.getUTCFullYear()).slice(2) : ""}</div>` : '<div class="mono">no date</div>'}</div>
       <div><strong>${esc(c?.name || "")}</strong>${when ? `<span class="tag">${when}</span>` : ""}${passed ? '<span class="tag late">date passed: update status</span>' : ""}<br><span class="muted">${esc([p.title, p.location, p.time].filter(Boolean).join(" · "))}</span></div>
-      <div class="ss">${statusSelect(p)}</div>
+      <div class="ss">${statusSelect(p)}<br>${sourceSelect(p)}</div>
       <div class="sp">${ps.length ? ps.map((x) => `<div class="pr"><span class="muted">${esc(x.pt.label)} ${fmt(x.pt.amount)}${x.pt.due ? " · due " + nice(x.pt.due) : ""}${x.inv.published ? "" : " · not sent"}</span>${paySelect(x.inv, x.i, x.pt)}${x.inv.claimed && !x.pt.paid ? '<span class="pill pay-claim">says paid</span>' : ""}</div>`).join("") : `<div class="pr muted">${p.price ? fmt(p.price) + " · " : ""}no invoice yet <a href="#/invoice/new/${p.clientId}">+ Invoice</a></div>`}
         ${money.has ? `<div class="pr tot">${money.remaining > 0 ? fmt(money.remaining) + " to pay" : "all paid"}</div>` : ""}</div></div>`;
   };
@@ -170,10 +174,12 @@ route(/^\/$/, () => {
   const unpaidParts = S.invoices.flatMap((inv) => inv.parts.filter((pt) => !pt.paid && pt.amount > 0).map((pt) => ({ inv, pt })));
   const overdueSum = unpaidParts.filter((x) => x.pt.due && x.pt.due < t).reduce((a, x) => a + (+x.pt.amount || 0), 0);
   const collect = live.reduce((a, p) => { const m = projectMoney(p); return a + (m.has ? m.remaining : 0); }, 0);
+  const srcCount = {}; for (const p of live) srcCount[p.source || ""] = (srcCount[p.source || ""] || 0) + 1;
+  const srcLine = `<p class="muted" style="margin:10px 0 0;font-size:13.5px">Where shoots come from: ${[...SOURCES, ""].filter((k) => srcCount[k]).map((k) => `<strong>${esc(k || "not set")}</strong> ${srcCount[k]}`).join(" · ") || "not set yet"}</p>`;
   const tile = (n, l, cls = "") => `<div class="tile ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
   const draw = () => {
     const q = ($("#q") && $("#q").value || "").toLowerCase();
-    const match = (p) => !q || [client(p.clientId)?.name, p.title, p.location, p.type].join(" ").toLowerCase().includes(q);
+    const match = (p) => !q || [client(p.clientId)?.name, p.title, p.location, p.type, p.source].join(" ").toLowerCase().includes(q);
     $("#secs").innerHTML = ["up", "ed", "done"].map((k) => {
       const list = sets[k].filter(match);
       return `<details class="sec" data-sec="${k}" ${dashOpen[k] ? "open" : ""}><summary><h2>${titles[k]}</h2><span class="cnt">${list.length}</span><span class="muted" style="font-size:13px">${hint[k]}</span></summary>${list.map(row).join("") || '<p class="muted">Nothing here.</p>'}</details>`;
@@ -183,6 +189,7 @@ route(/^\/$/, () => {
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Dash<em>board</em></h1>
     <div class="tiles">${tile(live.filter(lead).length, "Leads")}${tile(live.filter((p) => p.status === "booked" && !isPast(p)).length, "Booked ahead")}${tile(sets.ed.length, "Editing")}${tile(fmt(collect), "To collect", "org")}${overdueSum > 0 ? tile(fmt(overdueSum), "Overdue", "red") : ""}</div>
     <div class="row" style="margin:16px 0 0"><input id="q" class="grow" placeholder="Search by client, shoot or place…"><a class="btn ghost" href="#/clients">All clients</a><a class="btn ghost" href="#/import-pdf">Import from PDFs</a></div>
+    ${srcLine}
     <div id="secs"></div>`;
   $("#q").oninput = draw;
   draw();
@@ -267,13 +274,13 @@ route(/^\/client\/(\w+)$/, (id) => {
 function projectForm(clientId, p = {}) {
   $("#pform").innerHTML = `<div class="card"><div class="grid">${field("title", "Title (e.g. Anna & Tom wedding)", p.title)}${select("type", "Type", ["Wedding", "Pre-wedding", "Proposal", "Elopement", "Engagement", "Other"].map((x) => [x, x]), p.type || "Wedding")}
     ${field("date", "Date", p.date, "date")}${field("time", "Time (e.g. 09:00-11:00)", p.time)}${field("location", "Location", p.location)}${field("package", "Package", p.package)}${select("status", "Status", ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"].map((x) => [x, STATUS_LABEL[x] || x]), p.status || "enquiry")}
-    ${field("price", "Total price", p.price || "", "number", 'step="0.01" min="0"')}${field("deposit", "Deposit / retainer", p.deposit || "", "number", 'step="0.01" min="0"')}${field("balanceDue", "Balance due date (defaults to the date)", p.balanceDue, "date")}${field("galleryUrl", "Gallery link (shown on client page)", p.galleryUrl)}</div>
+    ${field("price", "Total price", p.price || "", "number", 'step="0.01" min="0"')}${field("deposit", "Deposit / retainer", p.deposit || "", "number", 'step="0.01" min="0"')}${field("balanceDue", "Balance due date (defaults to the date)", p.balanceDue, "date")}${select("source", "Where the booking came from", [["", "(not set)"], ...SOURCES.map((x) => [x, x])], p.source || "")}${field("galleryUrl", "Gallery link (shown on client page)", p.galleryUrl)}</div>
     ${area("deliverables", "Description of services (one per line, goes into the contract as bullets; [location] is replaced by the location above)", p.deliverables || S.defaults.deliverables)}
     ${area("extras", "Additional pricing lines (one per line, shown indented under Additional Pricing)", p.extras || S.defaults.extras)}
     ${area("notes", "Notes (private)", p.notes)}<p class="row"><button id="savep">Save project</button><button class="ghost" id="cancelp">Cancel</button>${p.id ? '<button class="danger" id="delp">Delete</button>' : ""}</p></div>`;
   $("#pform").scrollIntoView({ behavior: "smooth", block: "center" });
   bind("#cancelp", () => ($("#pform").innerHTML = ""));
-  bind("#savep", async () => { await api("project" + (p.id ? "/" + p.id : ""), "POST", set({ clientId }, ["title", "type", "date", "time", "location", "package", "status", "price", "deposit", "balanceDue", "galleryUrl", "deliverables", "extras", "notes"])); toast("Saved"); await reload(); });
+  bind("#savep", async () => { await api("project" + (p.id ? "/" + p.id : ""), "POST", set({ clientId }, ["title", "type", "date", "time", "location", "package", "status", "price", "deposit", "balanceDue", "source", "galleryUrl", "deliverables", "extras", "notes"])); toast("Saved"); await reload(); });
   bind("#delp", async () => { if (confirm("Delete this project?")) { await api("project/" + p.id, "DELETE"); await reload(); } });
 }
 
@@ -522,7 +529,7 @@ route(/^\/revenue$/, () => {
   const toCome = {};
   for (const x of dated) { const k = x.d < monthStart ? thisYm : x.d.slice(0, 7); toCome[k] = (toCome[k] || 0) + x.a; }
   const lastProj = Object.keys(toCome).sort().pop() || thisYm;
-  let period = "12";
+  let period = "12", view = "total";
   const f2 = (n) => cur() + n.toLocaleString("en-GB", { minimumFractionDigits: 2 });
   const months = () => {
     let a; const out = [], b = lastProj > thisYm ? lastProj : thisYm;
@@ -555,7 +562,42 @@ route(/^\/revenue$/, () => {
       + (ci >= 0 ? ms.map((m, i) => (i < ci || !toCome[m] ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(proj[i]).toFixed(1)}" r="9" fill="transparent"><title>${name(i)}: ${f2(proj[i])} expected (${f2(got[i])} received + ${f2(toCome[m])} still due)</title></circle><circle cx="${x(i).toFixed(1)}" cy="${y(proj[i]).toFixed(1)}" r="3.5" fill="#fff" stroke="var(--rose)" stroke-width="2"/>`)).join("") : "");
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c5a63" stop-opacity=".28"/><stop offset="1" stop-color="#8c5a63" stop-opacity=".02"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#g)"/><path d="${path(sp)}" fill="none" stroke="var(--rose)" stroke-width="3" stroke-linejoin="round"/>${dp.length > 1 ? `<path d="${path(dp)}" fill="none" stroke="var(--rose)" stroke-width="3" stroke-dasharray="9 7" stroke-linejoin="round" opacity=".75"/>` : ""}${dots}${labels}</svg>`;
   };
+  // Money received per month, split by where the booking came from (stacked columns).
+  // Payments from the old system's history carry no channel, so they stay under "Not set" until that booking
+  // is in the studio with a source. Studio payments are moved out of "Not set" into their channel.
+  const CH_COLOR = { Instagram: "#c13584", "Google search": "#3b82f6", Threads: "#1f2937", Referral: "#f59e0b", Reddit: "#ef4444", Other: "#14b8a6", "Not set": "#d6d3d1" };
+  const drawChannels = () => {
+    const ms = months().filter((m) => m <= thisYm), by = Object.fromEntries(ms.map((m) => [m, 0]));
+    for (const x of list) { const k = x.d.slice(0, 7); if (k in by) by[k] += x.a; }
+    const keys = [...SOURCES, "Not set"], ch = Object.fromEntries(keys.map((k) => [k, Object.fromEntries(ms.map((m) => [m, 0]))]));
+    for (const m of ms) ch["Not set"][m] = by[m];
+    for (const inv of S.invoices) {
+      const src = project(inv.projectId)?.source; if (!src || !ch[src]) continue;
+      for (const pt of inv.parts) { const m = (pt.paidAt || "").slice(0, 7); if (pt.paid && m in by) { ch[src][m] += +pt.amount || 0; ch["Not set"][m] = Math.max(0, ch["Not set"][m] - (+pt.amount || 0)); } }
+    }
+    const totals = Object.fromEntries(keys.map((k) => [k, ms.reduce((a, m) => a + ch[k][m], 0)])), grand = ms.reduce((a, m) => a + by[m], 0);
+    const used = keys.filter((k) => totals[k] > 0.004);
+    const W = 1000, H = 340, L = 20, R = 70, T = 20, B = 40, max0 = Math.max(...ms.map((m) => by[m]), 1);
+    const step = [100, 250, 500, 1000, 2000, 2500, 5000, 10000].find((v) => max0 / v <= 7) || 20000, top = Math.ceil(max0 / step) * step;
+    const y = (v) => T + (H - T - B) * (1 - v / top), slot = (W - L - R) / ms.length, bw = Math.min(54, slot * 0.7);
+    let grid = ""; for (let v = 0; v <= top; v += step) grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(29,26,25,.12)"/><text x="${W - R + 10}" y="${y(v) + 4}" font-size="13" fill="#6f6863">${cur()}${v.toLocaleString("en-GB")}</text>`;
+    const every = ms.length > 14 ? 3 : ms.length > 7 ? 2 : 1;
+    let bars = "", labels = "";
+    ms.forEach((m, i) => {
+      const cx = L + slot * (i + 0.5); let acc = 0;
+      const tip = `${MON[+m.slice(5) - 1]} ${m.slice(0, 4)}: ${f2(by[m])}` + used.filter((k) => ch[k][m] > 0.004).map((k) => `\n${k}: ${f2(ch[k][m])}`).join("");
+      for (const k of keys) { const v = ch[k][m]; if (v <= 0.004) continue; const y1 = y(acc + v), y0 = y(acc); bars += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(y0 - y1, 0.5).toFixed(1)}" fill="${CH_COLOR[k]}"><title>${tip}</title></rect>`; acc += v; }
+      if (i % every === 0) labels += `<text x="${cx.toFixed(1)}" y="${H - 12}" font-size="13" fill="#6f6863" text-anchor="middle">${MON[+m.slice(5) - 1]}${i === 0 || m.endsWith("-01") ? " " + m.slice(0, 4) : ""}</text>`;
+    });
+    const tagged = grand - totals["Not set"];
+    $("#chart").innerHTML = `<p class="muted" style="margin:0">Total revenue by channel</p><div style="font:400 44px/1.2 var(--serif)">${f2(grand)}</div>
+      <p class="muted" style="margin:0 0 6px">${tagged > 0 ? `${f2(tagged)} of it is tagged with a channel.` : "No channel on any payment yet."} Set a booking's source on the Dashboard and its payments move from "Not set" into that channel. Payments from the old system have no source until the booking is in the studio.</p>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${bars}${labels}</svg>
+      <div class="row" style="gap:6px 18px;margin:10px 0 4px">${used.map((k) => `<span style="display:inline-flex;align-items:center;gap:7px"><i style="width:14px;height:14px;border-radius:4px;background:${CH_COLOR[k]};display:inline-block"></i><span>${k}</span> <strong>${f2(totals[k])}</strong></span>`).join("")}</div>
+      <div style="overflow-x:auto"><table style="margin-top:12px"><tr><th>Month</th><th class="r">Total</th>${used.map((k) => `<th class="r">${k}</th>`).join("")}</tr>${[...ms].reverse().map((m) => `<tr><td>${MON[+m.slice(5) - 1]} ${m.slice(0, 4)}</td><td class="r">${by[m] ? f2(by[m]) : '<span class="muted">-</span>'}</td>${used.map((k) => `<td class="r">${ch[k][m] > 0.004 ? f2(ch[k][m]) : '<span class="muted">-</span>'}</td>`).join("")}</tr>`).join("")}</table></div>`;
+  };
   const draw = () => {
+    if (view === "ch") return drawChannels();
     const ms = months(), by = Object.fromEntries(ms.map((m) => [m, 0]));
     for (const x of list) { const k = x.d.slice(0, 7); if (k in by) by[k] += x.a; }
     const got = ms.map((m) => by[m]), total = got.reduce((a, b) => a + b, 0);
@@ -569,13 +611,14 @@ route(/^\/revenue$/, () => {
   const h = S.history || { payments: [] };
   $("#app").innerHTML = `<p class="mono">Studio</p><h1>Rev<em>enue</em></h1>
     <div class="row sb" style="margin:6px 0 16px"><p class="muted" style="margin:0">Money received per month. Payments you tick as paid in the studio are added automatically.</p>
-      <select id="period" style="width:auto"><option value="12">Last 12 months</option><option value="year">This year</option><option value="all">All time</option></select></div>
+      <span class="row" style="gap:8px"><select id="view" style="width:auto"><option value="total">Total</option><option value="ch">By channel</option></select><select id="period" style="width:auto"><option value="12">Last 12 months</option><option value="year">This year</option><option value="all">All time</option></select></span></div>
     <div class="card" id="chart"></div>
     <h2>Payment history from before the studio</h2><div class="card">
       <p class="muted">${h.payments.length ? `${h.payments.length} past payments loaded (${nice(h.payments[0].d)} to ${nice(end)}). Payments marked paid in the studio before ${nice(end)} aren't counted again.${other ? ` ${other} payment(s) in other currencies aren't shown.` : ""}` : "Nothing loaded yet. Upload the payment export CSV from your old system once. Only dates and amounts are stored, no names, contracts or invoices."}</p>
       <div class="row"><label class="btn ghost" style="margin:0;text-transform:none;font:inherit;cursor:pointer">Choose payments CSV<input id="csv" type="file" accept=".csv,text/csv" style="display:none"></label>${h.payments.length ? '<button class="danger sm" id="clearh">Remove history</button>' : ""}</div>
       <div id="csvinfo" style="margin-top:12px"></div></div>`;
   $("#period").onchange = (e) => { period = e.target.value; draw(); };
+  $("#view").onchange = (e) => { view = e.target.value; draw(); };
   draw();
   bind("#clearh", async () => { if (confirm("Remove the imported payment history?")) { await api("history", "DELETE"); await refresh(); await go(); } });
   $("#csv").onchange = async (e) => {
@@ -939,6 +982,14 @@ document.addEventListener("change", async (e) => {
     } catch {}
     await refresh(); await go(); window.scrollTo(0, y);
     if (q0 && $("#q")) { $("#q").value = q0; $("#q").dispatchEvent(new Event("input")); }
+    return;
+  }
+  const src = e.target.closest && e.target.closest("select[data-source]");
+  if (src) {
+    const pid = src.dataset.source, val0 = src.value;
+    try { await api(`project/${pid}/source`, "POST", { source: val0 }); } catch { await go(); return; }
+    const pr0 = project(pid); if (pr0) pr0.source = val0;
+    src.classList.toggle("unset", !val0); toast(val0 ? `Source: ${val0}` : "Source cleared");
     return;
   }
   const sel = e.target.closest && e.target.closest("select[data-status]");

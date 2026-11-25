@@ -413,12 +413,14 @@ function cleanClient(b) {
   return { name: line(b.name, 120), email: line(b.email, 160), email2: line(b.email2, 160), phone: line(b.phone, 40), notes: str(b.notes, 3000) };
 }
 const STATUSES = ["enquiry", "proposal", "booked", "shot", "delivered", "completed", "lost"];
+const SOURCES = ["Instagram", "Google search", "Threads", "Referral", "Reddit", "Other"];
 function cleanProject(b) {
   return {
     clientId: line(b.clientId, 40), title: line(b.title, 160), type: line(b.type, 60), date: isDate(b.date) ? b.date : "",
     location: line(b.location, 160), time: line(b.time, 40), package: line(b.package, 160), price: money(b.price), deposit: money(b.deposit),
     deliverables: str(b.deliverables, 2500), extras: str(b.extras, 1200), balanceDue: isDate(b.balanceDue) ? b.balanceDue : "",
     status: STATUSES.includes(b.status) ? b.status : "enquiry", galleryUrl: line(b.galleryUrl, 300), notes: str(b.notes, 3000),
+    source: SOURCES.includes(b.source) ? b.source : "",
   };
 }
 function cleanTemplate(b) { return { name: line(b.name, 120), body: str(b.body, 30000) }; }
@@ -1018,6 +1020,14 @@ async function handleApi(req, env, path) {
     return json({ url: url2, formula: `=IMPORTDATA("${url2}")` });
   }
 
+  // Where the booking came from (dropdown on the dashboard)
+  if (type === "project" && id && action === "source" && req.method === "POST") {
+    const proj = await load(env, "project", id);
+    if (!proj) return json({ error: "Not found" }, 404);
+    proj.source = SOURCES.includes(body.source) ? body.source : "";
+    await save(env, "project", proj);
+    return json({ ok: true, item: proj });
+  }
   // Quick status change from the lists
   if (type === "project" && id && action === "status" && req.method === "POST") {
     const proj = await load(env, "project", id);
