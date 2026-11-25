@@ -159,6 +159,8 @@ const PAGE_ALIASES = {
 };
 // Capitalised spellings of the real pages (e.g. /Weddings) also land on the lowercase page.
 for (const p of Object.values(PAGE_ALIASES)) PAGE_ALIASES[p] = p;
+// Graduation shoots aren't offered for now: old links go to the homepage.
+for (const p of ["/grad", "/grads", "/graduation", "/graduations"]) PAGE_ALIASES[p] = "/";
 
 export default {
   async fetch(request, env) {
